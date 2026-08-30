@@ -1,0 +1,377 @@
+# Chaîne : secrets -> SAST -> SCA -> build Docker -> scan d'images.
+# Les images sont construites et analysées, jamais poussées vers un registre.
+
+name: DevSecOps
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+
+# Chaque job élève ce minimum uniquement s'il publie du SARIF.
+permissions:
+  contents: read
+
+concurrency:
+  group: devsecops-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: '21'
+  NODE_VERSION: '22'
+  SEMGREP_VERSION: '1.175.0'
+
+jobs:
+
+  gitleaks:
+    name: "Secrets : GitLeaks"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Récupérer le dépôt avec son historique complet
+        uses: actions/checkout@v6
+        with:
+          # Sans historique, seul le dernier commit serait analysé : un secret
+          # introduit puis retiré passerait inaperçu.
+          fetch-depth: 0
+
+      - name: Analyser le dépôt et son historique
+        id: gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_SUMMARY: true
+
+      - name: Publier le rapport GitLeaks dans Code Scanning
+        if: always() && hashFiles('results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif
+          category: gitleaks
+
+      # continue-on-error laisse le SARIF remonter ; l'échec est réappliqué ici.
+      - name: Faire échouer le job si un secret a été détecté
+        if: steps.gitleaks.outcome == 'failure'
+        run: |
+          echo "::error::GitLeaks a détecté au moins un secret. Consultez Security > Code scanning, catégorie gitleaks."
+          exit 1
+
+  sast:
+    name: "SAST : Semgrep"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v6
+
+      - name: Installer Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # Version figée sur celle validée localement en Partie 4.
+      - name: Installer Semgrep
+        run: pip install --disable-pip-version-check "semgrep==${SEMGREP_VERSION}"
+
+      - name: Vérifier la validité des règles personnalisées
+        run: semgrep scan --validate --config .semgrep/rules.yaml
+
+      - name: Analyser le backend et le frontend
+        id: semgrep
+        run: |
+          semgrep scan \
+            --config .semgrep/rules.yaml \
+            --config p/owasp-top-ten \
+            --config p/nodejs \
+            --sarif \
+            --output semgrep.sarif \
+            --metrics=off \
+            backend/src/main/java \
+            frontend/src
+        env:
+          SEMGREP_SEND_METRICS: "off"
+
+      - name: Publier le rapport Semgrep dans Code Scanning
+        if: always() && hashFiles('semgrep.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+      - name: Conserver le rapport SARIF comme artefact
+        if: always() && hashFiles('semgrep.sarif') != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          retention-days: 30
+
+  sca:
+    name: "SCA : Snyk + Trivy FS"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v6
+
+      - name: Installer Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Installer Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dépendances du frontend
+        working-directory: frontend
+        run: npm ci --ignore-scripts
+
+      - name: Installer la CLI Snyk
+        run: npm install --global --no-fund --no-audit snyk@1
+
+      - name: Snyk — dépendances Maven du backend
+        id: snyk_backend
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test \
+            --file=backend/pom.xml \
+            --package-manager=maven \
+            --severity-threshold=low \
+            --sarif-file-output=snyk-backend.sarif
+
+      - name: Publier le rapport Snyk backend dans Code Scanning
+        if: always() && hashFiles('snyk-backend.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: snyk-backend.sarif
+          category: snyk-backend
+
+      - name: Snyk — dépendances npm du frontend
+        id: snyk_frontend
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk test \
+            --file=frontend/package-lock.json \
+            --package-manager=npm \
+            --severity-threshold=low \
+            --sarif-file-output=snyk-frontend.sarif
+
+      - name: Publier le rapport Snyk frontend dans Code Scanning
+        if: always() && hashFiles('snyk-frontend.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: snyk-frontend.sarif
+          category: snyk-frontend
+
+      # Deux passages : celui-ci produit le rapport, le suivant porte le blocage.
+      - name: Trivy filesystem — rapport SARIF
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          format: sarif
+          output: trivy-fs.sarif
+          severity: LOW,MEDIUM,HIGH,CRITICAL
+          exit-code: '0'
+
+      - name: Publier le rapport Trivy filesystem dans Code Scanning
+        if: always() && hashFiles('trivy-fs.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+      # Seul contrôle bloquant du pipeline. Politique : bloquer sur CRITICAL
+      # lorsqu'un correctif existe ; ce qui n'est pas corrigeable n'est pas
+      # actionnable et ne doit pas arrêter la chaîne.
+      - name: Trivy filesystem — contrôle bloquant (CRITICAL corrigeables)
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          format: table
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  docker-build-and-scan:
+    name: Build & scan des images
+    runs-on: ubuntu-latest
+    needs:
+      - gitleaks
+      - sast
+      - sca
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v6
+
+      - name: Préparer Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # load: true charge l'image dans le démon local pour que Trivy l'analyse.
+      - name: Construire l'image du backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          load: true
+          tags: salary-tontine-backend:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Construire l'image du frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          load: true
+          tags: salary-tontine-frontend:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Trivy — image backend
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: salary-tontine-backend:${{ github.sha }}
+          format: sarif
+          output: trivy-backend-image.sarif
+          severity: LOW,MEDIUM,HIGH,CRITICAL
+          # Une vulnérabilité sans correctif noierait celles sur lesquelles agir.
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Publier le rapport image backend dans Code Scanning
+        if: always() && hashFiles('trivy-backend-image.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-backend-image.sarif
+          category: trivy-backend-image
+
+      - name: Trivy — image frontend
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: salary-tontine-frontend:${{ github.sha }}
+          format: sarif
+          output: trivy-frontend-image.sarif
+          severity: LOW,MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '0'
+
+      - name: Publier le rapport image frontend dans Code Scanning
+        if: always() && hashFiles('trivy-frontend-image.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-frontend-image.sarif
+          category: trivy-frontend-image
+
+      - name: Conserver les rapports d'image comme artefacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: trivy-image-sarif
+          path: trivy-*-image.sarif
+          retention-days: 30
+          if-no-files-found: ignore
+
+  summary:
+    name: Récapitulatif DevSecOps
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - gitleaks
+      - sast
+      - sca
+      - docker-build-and-scan
+    permissions:
+      contents: read
+    steps:
+      - name: Écrire le tableau récapitulatif
+        env:
+          R_GITLEAKS: ${{ needs.gitleaks.result }}
+          R_SAST: ${{ needs.sast.result }}
+          R_SCA: ${{ needs.sca.result }}
+          R_BUILD: ${{ needs.docker-build-and-scan.result }}
+        run: |
+          etat() {
+            case "$1" in
+              success)   echo ":white_check_mark: Succès" ;;
+              failure)   echo ":x: Échec" ;;
+              cancelled) echo ":grey_exclamation: Annulé" ;;
+              skipped)   echo ":no_entry_sign: Non exécuté (gate amont en échec)" ;;
+              *)         echo ":question: $1" ;;
+            esac
+          }
+
+          {
+            echo "## Pipeline DevSecOps — SalaryTontine"
+            echo ""
+            echo "Commit : \`${GITHUB_SHA}\` · Référence : \`${GITHUB_REF_NAME}\` · Événement : \`${GITHUB_EVENT_NAME}\`"
+            echo ""
+            echo "| Contrôle | Outil | Résultat |"
+            echo "|---|---|---|"
+            echo "| Secrets | GitLeaks | $(etat "$R_GITLEAKS") |"
+            echo "| SAST | Semgrep | $(etat "$R_SAST") |"
+            echo "| SCA | Snyk | $(etat "$R_SCA") |"
+            echo "| SCA | Trivy FS | $(etat "$R_SCA") |"
+            echo "| Build | Docker | $(etat "$R_BUILD") |"
+            echo "| Container Scan | Trivy Image | $(etat "$R_BUILD") |"
+            echo ""
+            echo "> Snyk et Trivy FS s'exécutent dans le même job \`sca\` : ils partagent donc son état."
+            echo "> Le build et le scan d'images s'exécutent dans le job \`docker-build-and-scan\`."
+            echo ""
+            echo "### Détail des résultats"
+            echo ""
+            echo "Les alertes sont consultables dans **Security → Code scanning**, sous les catégories :"
+            echo "\`gitleaks\`, \`semgrep\`, \`snyk-backend\`, \`snyk-frontend\`, \`trivy-fs\`, \`trivy-backend-image\`, \`trivy-frontend-image\`."
+            echo ""
+            echo "### Security gate"
+            echo ""
+            echo "Le job \`docker-build-and-scan\` dépend de \`gitleaks\`, \`sast\` et \`sca\`."
+            echo "Aucune image n'est construite tant que ces trois contrôles n'ont pas réussi."
+            echo "Aucune image n'est poussée vers un registre : le pipeline se limite à construire et analyser."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Refléter l'état global du pipeline
+        if: >-
+          needs.gitleaks.result == 'failure' ||
+          needs.sast.result == 'failure' ||
+          needs.sca.result == 'failure' ||
+          needs.docker-build-and-scan.result == 'failure'
+        run: |
+          echo "::error::Au moins un contrôle de sécurité a échoué. Voir le récapitulatif et Security > Code scanning."
+          exit 1
