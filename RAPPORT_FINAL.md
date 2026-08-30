@@ -978,6 +978,740 @@ failles à tout prix, mais d'évaluer honnêtement la posture de sécurité de l
 
 ## 4. Règles Semgrep Custom
 
+### 4.1 Objectif et stratégie
+
+Les règles personnalisées sont regroupées dans un fichier unique à la racine du dépôt,
+`.semgrep/rules.yaml`, qui contient **six règles**. Quatre visent le backend Java 21 / Spring
+Boot 3.4, une vise à la fois le backend et la configuration de sécurité, et une vise le frontend
+React 19 / TypeScript. Le fichier déclare donc deux familles de langages : `java` d'une part,
+`typescript` et `javascript` d'autre part.
+
+Ces règles n'ont pas été reprises d'un catalogue générique. Chacune vise une construction
+effectivement présente dans SalaryTontine, ou plausible au vu de sa pile technique et de son
+domaine métier. R1 cible les API de persistance réellement employées — JPA, Spring JDBC — et son
+message rappelle que les dix-sept requêtes `@Query` du projet sont déjà écrites en JPQL avec
+paramètres nommés. R4 détecte la forme exacte du défaut relevé en Partie 3 : un drapeau booléen
+dont le nom contient `secure` et dont la valeur par défaut est `false`. R5 vise
+`csrf(AbstractHttpConfigurer::disable)`, c'est-à-dire la construction littéralement écrite dans
+`SecurityConfig`. R6 énumère dans son message les champs contrôlés par les utilisateurs que le
+frontend affiche : nom de tontine, message de motivation, note de refus, détail d'audit.
+
+La validation et l'exécution ont été réalisées avec **Semgrep 1.175.0**. **Aucun ruleset distant
+n'a été utilisé à cette étape** : les registres `p/owasp-top-ten`, `p/nodejs` et `p/java` seront
+introduits dans la pipeline en Partie 5, précisément pour que la comparaison entre règles écrites
+sur mesure et règles génériques reste lisible.
+
+| ID | Règle | Langage | OWASP / CWE | Sévérité | Finding actuel |
+|---|---|---|---|---|---|
+| R1 | `salarytontine-sql-jpql-injection` | Java | A03:2021 / CWE-89 | ERROR | **0** |
+| R2 | `salarytontine-command-injection` | Java | A03:2021 / CWE-78 | ERROR | **0** |
+| R3 | `salarytontine-hardcoded-secret` | Java | A07:2021 / CWE-798 | ERROR | **0** |
+| R4 | `salarytontine-insecure-auth-cookie` | Java | A02:2021 / CWE-614 | WARNING | **1** |
+| R5 | `salarytontine-spring-csrf-disabled` | Java | A01:2021 / CWE-352 | WARNING | **1** |
+| R6 | `salarytontine-react-dangerously-set-inner-html` | TypeScript / JavaScript | A03:2021 / CWE-79 | ERROR | **0** |
+
+Quatre règles sur six ne remontent aucun finding. **Ce n'est pas un défaut de conception, et ce
+n'est pas non plus la preuve que le pattern visé existe dans le code.** Ces quatre règles sont
+préventives : elles interdisent l'introduction future d'un motif dangereux. Chaque section
+ci-dessous le précise explicitement, et la sous-section 4.4 documente comment le déclenchement
+effectif de ces règles a été vérifié en dehors du dépôt.
+
+---
+
+### 4.2 Règles personnalisées
+
+#### R1 — Injection SQL / JPQL
+
+```yaml
+- id: salarytontine-sql-jpql-injection
+  languages: [java]
+  severity: ERROR
+  message: >-
+    Requête SQL ou JPQL construite par concaténation avant d'être passée à
+    une API de persistance. Toute donnée d'origine utilisateur ainsi assemblée est
+    interprétée comme du code SQL : un identifiant de tontine ou un filtre de
+    mois suffirait à détourner la requête et à lire ou altérer
+    "salary_records", "contributions" ou "users". Utilisez un paramètre nommé
+    (setParameter / :param) ou un placeholder "?" avec JdbcTemplate. Les
+    repositories de SalaryTontine appliquent déjà cette règle : les 17 requêtes
+    @Query du projet sont en JPQL avec paramètres nommés.
+  metadata:
+    category: security
+    cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command"
+    owasp: "A03:2021 - Injection"
+    technology: [java, spring, jpa, hibernate]
+    confidence: HIGH
+    impact: HIGH
+    likelihood: MEDIUM
+  patterns:
+    - pattern-either:
+        # API JPA / Hibernate
+        - pattern: $EM.createQuery($QUERY, ...)
+        - pattern: $EM.createNativeQuery($QUERY, ...)
+        - pattern: $EM.createStoredProcedureQuery($QUERY, ...)
+        - pattern: $SESSION.createSQLQuery($QUERY, ...)
+        # API Spring JDBC
+        - pattern: $JDBC.query($QUERY, ...)
+        - pattern: $JDBC.queryForObject($QUERY, ...)
+        - pattern: $JDBC.queryForList($QUERY, ...)
+        - pattern: $JDBC.queryForMap($QUERY, ...)
+        - pattern: $JDBC.queryForRowSet($QUERY, ...)
+        - pattern: $JDBC.update($QUERY, ...)
+        - pattern: $JDBC.batchUpdate($QUERY, ...)
+        - pattern: $JDBC.execute($QUERY, ...)
+        # JDBC brut
+        - pattern: $CONN.prepareStatement($QUERY, ...)
+        - pattern: $STMT.executeQuery($QUERY)
+        - pattern: $STMT.executeUpdate($QUERY)
+    # Seule une requête assemblée dynamiquement est signalée.
+    - metavariable-pattern:
+        metavariable: $QUERY
+        patterns:
+          - pattern-either:
+              - pattern: $A + $B
+              - pattern: String.format(...)
+              - pattern: $S.concat(...)
+              - pattern: $S.formatted(...)
+              - pattern: $BUILDER.toString()
+              - pattern: String.join(...)
+    # Une requête correctement paramétrée n'est jamais concernée : ni un
+    # littéral seul, ni une constante, ni un bloc de texte figé.
+    - pattern-not: $EM.createQuery("...", ...)
+    - pattern-not: $EM.createNativeQuery("...", ...)
+    - pattern-not: $JDBC.query("...", ...)
+    - pattern-not: $JDBC.update("...", ...)
+    - pattern-not: $JDBC.execute("...")
+  paths:
+    exclude: ["*Test.java", "*Tests.java", "*IT.java", "src/test/**"]
+```
+
+**Pattern dangereux détecté.** Une requête passée à une API de persistance alors qu'elle a été
+assemblée dynamiquement. La règle ne se contente pas de repérer l'appel : elle exige, par
+`metavariable-pattern`, que l'argument `$QUERY` soit lui-même une concaténation (`$A + $B`), un
+`String.format`, un `concat`, un `formatted`, un `StringBuilder.toString()` ou un `String.join`.
+Un exemple typique serait `em.createQuery("select s from SalaryRecord s where s.tontine.id = " +
+tontineId)`.
+
+**Pertinence pour SalaryTontine.** Les tables `salary_records`, `contributions` et `users`
+contiennent l'intégralité des données de paie simulées. Une injection sur l'une d'elles
+permettrait de lire les salaires de tous les employés, ou d'altérer une cotisation, en
+contournant toutes les règles métier des services — exactement le franchissement de la frontière
+**TB2** décrit dans le modèle de menaces de la Partie 2. La règle couvre à la fois JPA, Spring
+JDBC et JDBC brut, car ces trois API sont disponibles dans les dépendances du projet et pourraient
+être employées lors d'une future optimisation de requête.
+
+**Correctif suggéré.** Utiliser un paramètre nommé en JPQL (`:id` avec `setParameter`) ou un
+placeholder `?` avec `JdbcTemplate`. Les repositories du projet appliquent déjà cette convention.
+
+**Résultat actuel : 0 finding.** Le backend n'utilise aujourd'hui que des requêtes JPQL
+paramétrées : les dix-sept annotations `@Query` du projet emploient des paramètres nommés, et une
+recherche manuelle de `nativeQuery`, `createQuery`, `createNativeQuery` et de concaténation dans
+le paquet `repository` n'a retourné aucune occurrence, ce que confirme cette règle.
+**Le pattern n'est pas présent dans l'état actuel du projet ; la règle est préventive et vise à
+empêcher son introduction future**, notamment lors de l'ajout d'une requête JPA ou d'un accès
+`JdbcTemplate` pour un besoin de reporting.
+
+---
+
+#### R2 — Injection de commande système
+
+```yaml
+- id: salarytontine-command-injection
+  languages: [java]
+  severity: ERROR
+  message: >-
+    Commande système construite par concaténation puis exécutée. SalaryTontine
+    n'exécute aujourd'hui aucun processus externe ; introduire un appel de ce
+    type avec une chaîne assemblée depuis une entrée utilisateur — un nom de
+    tontine, un libellé de motivation — permettrait d'exécuter des commandes
+    arbitraires sur le conteneur applicatif. Passez les arguments sous forme
+    de liste (ProcessBuilder("cmd", "arg1", "arg2")), sans jamais interpoler
+    de donnée entrante, et validez chaque valeur contre une liste blanche.
+  metadata:
+    category: security
+    cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+    owasp: "A03:2021 - Injection"
+    technology: [java]
+    confidence: HIGH
+    impact: HIGH
+    likelihood: LOW
+  patterns:
+    - pattern-either:
+        - pattern: Runtime.getRuntime().exec($CMD, ...)
+        - pattern: $RT.exec($CMD, ...)
+        - pattern: new ProcessBuilder($CMD, ...)
+        - pattern: $PB.command($CMD, ...)
+    - metavariable-pattern:
+        metavariable: $CMD
+        patterns:
+          - pattern-either:
+              - pattern: $A + $B
+              - pattern: String.format(...)
+              - pattern: $S.concat(...)
+              - pattern: $S.formatted(...)
+              - pattern: $BUILDER.toString()
+    # Une commande entièrement figée dans le code n'est pas une injection.
+    - pattern-not: Runtime.getRuntime().exec("...")
+    - pattern-not: new ProcessBuilder("...")
+  paths:
+    exclude: ["*Test.java", "*Tests.java", "src/test/**"]
+```
+
+**Pattern dangereux détecté.** Un appel à `Runtime.getRuntime().exec(...)`, à
+`new ProcessBuilder(...)` ou à `ProcessBuilder.command(...)` dont l'argument est une chaîne
+assemblée. Par exemple `Runtime.getRuntime().exec("pg_dump " + nomTontine)`.
+
+**Pertinence pour SalaryTontine.** L'application manipule plusieurs chaînes librement saisies par
+les utilisateurs et stockées en base : nom d'une tontine, message de motivation d'une demande
+d'adhésion, note de refus rédigée par le comptable. Le besoin d'exporter un bulletin de paie ou
+de déclencher une sauvegarde de la base est le scénario d'évolution le plus probable pour ce type
+d'application ; c'est précisément là qu'une de ces chaînes se retrouverait interpolée dans une
+commande shell. Le backend s'exécutant dans un conteneur, une injection donnerait l'exécution de
+code sur ce conteneur.
+
+**Correctif suggéré.** Passer les arguments sous forme de liste — `new ProcessBuilder("tar",
+"czf", fichier)` — de sorte qu'aucune interprétation shell n'ait lieu, et valider chaque valeur
+entrante contre une liste blanche.
+
+**Résultat actuel : 0 finding.** Une recherche manuelle de `Runtime.getRuntime`, `ProcessBuilder`,
+`ObjectInputStream` et `readObject` sur `backend/src/main` n'a retourné aucune occurrence : aucune
+exécution de commande système n'est présente dans l'application.
+**Le pattern n'est pas présent dans l'état actuel du projet ; la règle est préventive et vise à
+empêcher son introduction future.**
+
+---
+
+#### R3 — Secret codé en dur
+
+```yaml
+- id: salarytontine-hardcoded-secret
+  languages: [java]
+  severity: ERROR
+  message: >-
+    La variable "$NAME" porte un nom évoquant un secret et reçoit une valeur
+    littérale. SalaryTontine externalise l'intégralité de ses secrets par
+    variables d'environnement — JWT_SECRET, DB_PASSWORD, APP_ADMIN_PASSWORD,
+    APP_SEED_PASSWORD — et refuse de démarrer si JWT_SECRET est absent ou fait
+    moins de 32 caractères. Un secret écrit dans le code source entre dans
+    l'historique Git, se propage à toutes les copies du dépôt et ne peut plus
+    être révoqué par une simple rotation. Déclarez-le dans .env.example sans
+    valeur, et lisez-le via AppProperties.
+  metadata:
+    category: security
+    cwe: "CWE-798: Use of Hard-coded Credentials"
+    owasp: "A07:2021 - Identification and Authentication Failures"
+    technology: [java, spring]
+    confidence: MEDIUM
+    impact: HIGH
+    likelihood: MEDIUM
+  patterns:
+    - pattern-either:
+        # Déclaration : le nom est celui de la variable.
+        - pattern: $TYPE $NAME = $VALUE;
+        # Affectation par mutateur : le nom est celui de la méthode.
+        - pattern: $OBJ.$NAME($VALUE);
+    # (1) Le nom de la variable ou du mutateur doit évoquer un secret.
+    - metavariable-regex:
+        metavariable: $NAME
+        regex: (?i).*(password|passwd|pwd|secret|token|apikey|api_key|jwtsecret|jwt_secret|credential|privatekey|private_key).*
+    # (2) La valeur doit être une chaîne littérale.
+    - metavariable-pattern:
+        metavariable: $VALUE
+        pattern: '"..."'
+    # (3) ...d'au moins 8 caractères contigus, sans espace.
+    - metavariable-regex:
+        metavariable: $VALUE
+        regex: ^"?[^\s"]{8,}"?$
+    # Cas explicitement sûrs, exclus par pattern-not.
+    - pattern-not: $TYPE $NAME = "";
+    - pattern-not: $TYPE $NAME = null;
+    - pattern-not: $TYPE $NAME = "changeme";
+    - pattern-not: $TYPE $NAME = "REDACTED";
+    # Référence à une variable d'environnement ou à une propriété Spring.
+    - pattern-not-regex: \$\{[A-Za-z_][A-Za-z0-9_.:\-]*\}
+  paths:
+    exclude:
+      - "*Test.java"
+      - "*Tests.java"
+      - "*IT.java"
+      - "src/test/**"
+      - "**/test/**"
+      - "**/testdata/**"
+```
+
+**Pattern dangereux détecté.** Une déclaration ou une affectation par mutateur dont le **nom**
+évoque un secret et dont la **valeur** est une chaîne littérale plausible. Les trois conditions
+sont cumulatives : nom évocateur, valeur littérale, valeur d'au moins huit caractères contigus
+sans espace. C'est la règle qui satisfait l'exigence `metavariable-regex` du sujet, appliquée
+deux fois, sur le nom puis sur la valeur.
+
+**Pertinence pour SalaryTontine.** L'application manipule quatre secrets distincts —
+`JWT_SECRET`, `DB_PASSWORD`, `APP_ADMIN_PASSWORD`, `APP_SEED_PASSWORD` — dont la compromission a
+des conséquences très différentes mais toutes graves : forger un jeton d'administrateur pour le
+premier, accéder directement à la base et contourner toutes les règles métier pour le second. La
+tentation d'écrire une valeur « juste pour tester » est le mode d'introduction classique de ce
+défaut, et un secret entré dans l'historique Git ne peut plus être révoqué par une simple
+rotation : il subsiste dans toutes les copies du dépôt.
+
+**Correctif suggéré.** Déclarer la variable dans `.env.example` sans valeur, la lire par
+`AppProperties`, et faire échouer le démarrage si elle est absente — mécanisme déjà en place pour
+`JWT_SECRET`.
+
+**Résultat actuel : 0 finding.** L'analyse manuelle de la Partie 3 avait déjà conclu qu'aucun
+secret de production n'était écrit en dur : les seules correspondances rencontrées étaient des
+identifiants factices de tests, exclus ici par la section `paths`. Cette règle confirme ce
+résultat de manière automatisée. La configuration actuelle externalise l'intégralité des secrets
+par variables d'environnement.
+**Le pattern n'est pas présent dans l'état actuel du projet ; la règle est préventive et protège
+contre une introduction future.**
+
+---
+
+#### R4 — Cookie d'authentification sans attribut Secure
+
+```yaml
+- id: salarytontine-insecure-auth-cookie
+  languages: [java]
+  severity: WARNING
+  message: >-
+    Cookie d'authentification susceptible d'être émis sans l'attribut Secure.
+    Le JWT de SalaryTontine voyage dans un cookie HttpOnly SameSite=Lax
+    construit par JwtCookieService ; sans Secure, le navigateur le transmet
+    aussi sur une connexion HTTP en clair, où il peut être intercepté et
+    rejoué jusqu'à son expiration. Positionnez la valeur par défaut à true et
+    ne la ramenez à false que par un profil de développement explicite.
+  metadata:
+    category: security
+    cwe: "CWE-614: Sensitive Cookie in HTTPS Session Without 'Secure' Attribute"
+    owasp: "A02:2021 - Cryptographic Failures"
+    technology: [java, spring, spring-security]
+    confidence: MEDIUM
+    impact: HIGH
+    likelihood: MEDIUM
+  patterns:
+    - pattern-either:
+        # Désactivation explicite sur l'API Cookie ou ResponseCookie.
+        - pattern: $COOKIE.setSecure(false)
+        - pattern: $BUILDER.secure(false)
+        # Drapeau de configuration dont la valeur par défaut n'est pas sûre.
+        - patterns:
+            - pattern: boolean $FLAG = false;
+            - metavariable-regex:
+                metavariable: $FLAG
+                regex: (?i).*secure.*
+  paths:
+    exclude: ["*Test.java", "*Tests.java", "src/test/**"]
+```
+
+**Pattern dangereux détecté.** Trois formes : un appel explicite `setSecure(false)` sur l'API
+`Cookie`, un `.secure(false)` sur le constructeur fluide `ResponseCookie`, et — troisième forme,
+la plus intéressante ici — un drapeau booléen dont le nom contient `secure` et dont la valeur par
+défaut est `false`.
+
+**Pertinence pour SalaryTontine.** Le JWT est la seule preuve d'identité de l'application : aucune
+session serveur ne double l'authentification. Le cookie qui le porte est construit par
+`JwtCookieService`, qui applique bien `HttpOnly` et `SameSite=Lax`, mais tire son attribut
+`Secure` d'un drapeau de configuration. C'est la valeur par défaut de ce drapeau que la règle
+vise.
+
+**Correctif suggéré.** Inverser la valeur par défaut à `true`, et ne la ramener à `false` que par
+un profil de développement explicite. Le développement local reste possible, la production
+devient sûre par défaut.
+
+**Résultat actuel : 1 finding.**
+
+```
+backend/src/main/java/com/salarytontine/config/AppProperties.java:115
+    private boolean cookieSecure = false;
+```
+
+Ce signalement correspond exactement au constat **C3** de la Partie 3. Il en confirme le
+diagnostic de façon automatisée, mais il ne modifie pas la sévérité qui y avait été retenue, et
+la nuance doit être conservée telle quelle : **Medium dans le contexte local actuel**, puisque
+SalaryTontine ne dispose d'aucun déploiement de production et que le défaut `false` est le
+comportement attendu et nécessaire derrière Docker Compose en HTTP. Cette même valeur
+**deviendrait dangereuse, et la sévérité passerait à High, si elle était conservée dans un
+déploiement accessible sans HTTPS** : le jeton circulerait alors en clair et un attaquant présent
+sur le réseau obtiendrait une session valide une heure, avec les privilèges de sa victime. Ce qui
+est en cause n'est donc pas une exploitation actuelle, mais un défaut qui n'est pas sûr par
+défaut — l'oubli d'une variable d'environnement suffirait à créer la vulnérabilité.
+
+---
+
+#### R5 — Protection CSRF désactivée dans Spring Security
+
+```yaml
+- id: salarytontine-spring-csrf-disabled
+  languages: [java]
+  severity: WARNING
+  message: >-
+    La protection CSRF de Spring Security est désactivée globalement.
+    SalaryTontine authentifie par cookie : sans jeton anti-CSRF, la défense
+    repose entièrement sur l'attribut SameSite du cookie et sur le respect de
+    cette directive par le navigateur. Vérifiez qu'aucune route GET ne modifie
+    l'état, et documentez explicitement ce choix — ou activez
+    CookieCsrfTokenRepository pour une défense en profondeur. Ce signalement
+    demande une analyse contextuelle : il n'est pas nécessairement exploitable
+    sur une API stateless dont le cookie porte SameSite=Lax.
+  metadata:
+    category: security
+    cwe: "CWE-352: Cross-Site Request Forgery (CSRF)"
+    owasp: "A01:2021 - Broken Access Control"
+    technology: [java, spring, spring-security]
+    confidence: HIGH
+    impact: MEDIUM
+    likelihood: LOW
+  patterns:
+    - pattern-either:
+        # Forme réellement utilisée dans SecurityConfig.
+        - pattern: $HTTP.csrf(AbstractHttpConfigurer::disable)
+        - pattern: $HTTP.csrf($ANY::disable)
+        # Formes alternatives fréquentes.
+        - pattern: $HTTP.csrf($C -> $C.disable())
+        - pattern: $HTTP.csrf().disable()
+        - pattern: $HTTP.csrf(csrf -> csrf.disable())
+    # Une exemption ciblée sur quelques routes n'est pas une désactivation
+    # globale et relève d'une décision d'architecture différente.
+    - pattern-not: $HTTP.csrf($C -> $C.ignoringRequestMatchers(...))
+  paths:
+    exclude: ["*Test.java", "*Tests.java", "src/test/**"]
+```
+
+**Pattern dangereux détecté.** La désactivation **globale** de la protection CSRF, sous ses
+différentes écritures : référence de méthode `AbstractHttpConfigurer::disable`, lambda
+`csrf -> csrf.disable()`, ou chaînage historique `.csrf().disable()`. Le `pattern-not` écarte
+délibérément l'exemption ciblée `ignoringRequestMatchers`, qui relève d'une décision
+d'architecture différente et ne laisse pas l'API sans protection.
+
+**Pertinence pour SalaryTontine.** L'authentification se fait par cookie, ce qui expose
+structurellement au CSRF. Sans jeton anti-CSRF, la défense repose entièrement sur l'attribut
+`SameSite` du cookie et sur le respect de cette directive par le navigateur du client.
+
+**Correctif suggéré.** Soit documenter explicitement que la défense repose sur `SameSite`, avec
+la vérification qui l'accompagne — aucune route `GET` ne doit modifier l'état — soit activer
+`CookieCsrfTokenRepository` pour une défense en profondeur.
+
+**Résultat actuel : 1 finding.**
+
+```
+backend/src/main/java/com/salarytontine/config/SecurityConfig.java:63
+    .csrf(AbstractHttpConfigurer::disable)
+```
+
+Ce signalement correspond au constat **C8** de la Partie 3, et **il ne doit pas être présenté
+comme une vulnérabilité exploitable certaine**. L'analyse manuelle, menée avant cette exécution,
+avait établi deux faits que Semgrep ne peut pas connaître. D'une part, le cookie porte
+`SameSite=Lax`, qui empêche le navigateur de l'émettre sur une requête `POST`, `PATCH` ou
+`DELETE` inter-site. D'autre part — et c'est le point décisif — la vérification des quarante-deux
+endpoints de l'API a montré qu'**aucune route `GET` ne modifie l'état** : toutes les mutations
+passent par `POST`, `PATCH` ou `DELETE`. Or `Lax` n'émet le cookie que sur une navigation de
+premier niveau en `GET`. Il n'existe donc pas de vecteur exploitable sur un navigateur à jour.
+
+Ce finding est **l'exemple le plus intéressant de la Partie 4** du point de vue méthodologique.
+L'outil a raison sur le fait constaté : la protection CSRF est bel et bien désactivée
+globalement. Mais seul un examen humain de l'ensemble des routes pouvait établir que le risque
+résiduel est faible dans ce contexte précis. C'est exactement le type de signalement qu'un
+analyseur statique ne peut ni confirmer ni écarter seul, et qui justifie que la Partie 6 confronte
+les résultats automatisés à l'analyse manuelle plutôt que de les additionner. Le message de la
+règle intègre d'ailleurs cette réserve, afin que le développeur qui la déclenche ne conclue pas
+trop vite.
+
+Le risque résiduel subsiste néanmoins pour les navigateurs anciens ignorant `SameSite`, et en cas
+de compromission d'un sous-domaine du même site, `SameSite` ne distinguant pas les origines au
+sein d'un même domaine enregistré.
+
+---
+
+#### R6 — XSS React via `dangerouslySetInnerHTML`
+
+```yaml
+- id: salarytontine-react-dangerously-set-inner-html
+  languages: [typescript, javascript]
+  severity: ERROR
+  message: >-
+    Utilisation de dangerouslySetInnerHTML : le contenu est injecté sans
+    l'échappement automatique de React. Le frontend de SalaryTontine affiche
+    des chaînes contrôlées par les utilisateurs — nom de tontine, message de
+    motivation d'une demande d'adhésion, note de refus du comptable, détail
+    d'une trace d'audit. Rendues ainsi, elles permettraient d'exécuter du
+    script dans le navigateur d'un comptable ou d'un administrateur. Affichez
+    la valeur comme un nœud texte ({value}), ou assainissez-la explicitement
+    avec DOMPurify avant de la rendre.
+  metadata:
+    category: security
+    cwe: "CWE-79: Improper Neutralization of Input During Web Page Generation (XSS)"
+    owasp: "A03:2021 - Injection"
+    technology: [react, typescript, javascript]
+    confidence: HIGH
+    impact: MEDIUM
+    likelihood: MEDIUM
+  patterns:
+    - pattern-either:
+        - pattern: <$EL dangerouslySetInnerHTML={$VALUE} ... />
+        - pattern: |
+            <$EL dangerouslySetInnerHTML={$VALUE} ...>...</$EL>
+        - pattern: "React.createElement($EL, {..., dangerouslySetInnerHTML: $VALUE, ...}, ...)"
+    # Un contenu explicitement assaini reste acceptable.
+    - pattern-not: "<$EL dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(...)}} ... />"
+    - pattern-not: "<$EL dangerouslySetInnerHTML={{__html: $S.sanitize(...)}} ... />"
+  paths:
+    exclude: ["*.test.ts", "*.test.tsx", "**/__tests__/**"]
+```
+
+**Pattern dangereux détecté.** L'attribut `dangerouslySetInnerHTML` sous ses trois formes
+d'écriture : élément auto-fermant, élément avec enfants, et appel direct à
+`React.createElement`. Les deux `pattern-not` écartent le cas où le contenu est explicitement
+assaini par `DOMPurify.sanitize` ou par une méthode `sanitize` équivalente.
+
+**Pertinence pour SalaryTontine.** Le frontend affiche plusieurs chaînes intégralement contrôlées
+par les utilisateurs : le nom d'une tontine saisi par le comptable, le message de motivation
+rédigé par un employé lors d'une demande d'adhésion, la note de refus, et le champ de détail des
+traces d'audit. Ces valeurs sont rendues dans des pages consultées par des comptables et des
+administrateurs, c'est-à-dire par les comptes les plus privilégiés de l'application. Un script
+exécuté dans le navigateur d'un administrateur pourrait déclencher, en son nom, une modification
+de rôle ou de salaire. Le cookie de session étant `HttpOnly`, il ne serait pas exfiltrable, mais
+les actions resteraient possibles.
+
+**Correctif suggéré.** Afficher la valeur comme un nœud texte — `{value}` —, ce que fait le code
+actuel, ou l'assainir explicitement avec DOMPurify avant de la rendre.
+
+**Résultat actuel : 0 finding.** Une recherche manuelle de `dangerouslySetInnerHTML`, `innerHTML`
+et `eval(` sur `frontend/src` n'a retourné aucune occurrence : React échappe le contenu par défaut
+et le code se repose entièrement sur ce comportement.
+**Le pattern n'est pas présent dans l'état actuel du projet ; la règle est préventive et vise à
+empêcher l'introduction future d'un rendu HTML non maîtrisé.**
+
+---
+
+### 4.3 Utilisation de `pattern-not` et de `metavariable-regex`
+
+Les deux constructions exigées par le sujet sont présentes, et surtout elles font un travail réel :
+elles ne sont pas ajoutées pour satisfaire formellement la consigne. Le fichier compte quatorze
+occurrences de `pattern-not`, une de `pattern-not-regex` et trois de `metavariable-regex`. Trois
+exemples représentatifs suffisent à en montrer l'utilité.
+
+**Premier exemple — `pattern-not` dans R1 : écarter les requêtes correctement paramétrées.**
+
+```yaml
+- pattern-not: $EM.createQuery("...", ...)
+- pattern-not: $EM.createNativeQuery("...", ...)
+- pattern-not: $JDBC.query("...", ...)
+```
+
+Sans ces exclusions, tout appel à `createQuery` deviendrait suspect, et les dix-sept requêtes
+`@Query` du projet — pourtant toutes écrites en JPQL avec paramètres nommés — auraient été
+signalées. La règle ne conserve que les requêtes réellement assemblées à l'exécution. C'est cette
+exclusion qui rend le résultat « 0 finding » significatif : il signifie « aucune requête
+dangereuse », et non « la règle ne sait pas distinguer ».
+
+**Deuxième exemple — `pattern-not` dans R5 : distinguer désactivation globale et exemption ciblée.**
+
+```yaml
+- pattern-not: $HTTP.csrf($C -> $C.ignoringRequestMatchers(...))
+```
+
+Exempter quelques routes de la protection CSRF — un point d'entrée de webhook, par exemple — est
+une décision d'architecture courante et défendable, très différente d'une désactivation complète.
+Sans ce `pattern-not`, la règle confondrait les deux et perdrait sa précision. La distinction
+compte d'autant plus ici que R5 produit un finding réel : il faut que ce finding désigne
+exactement le bon défaut.
+
+**Troisième exemple — `metavariable-regex` dans R3 : cibler le nom, puis la valeur.**
+
+```yaml
+- metavariable-regex:
+    metavariable: $NAME
+    regex: (?i).*(password|passwd|pwd|secret|token|apikey|api_key|jwtsecret|jwt_secret|credential|privatekey|private_key).*
+- metavariable-regex:
+    metavariable: $VALUE
+    regex: ^"?[^\s"]{8,}"?$
+```
+
+La première expression restreint la règle aux variables et aux mutateurs dont le nom évoque un
+secret : sans elle, `$TYPE $NAME = $VALUE;` correspondrait à **toute** déclaration Java du projet.
+La seconde impose que la valeur soit un jeton d'au moins huit caractères contigus, sans espace.
+Cette seconde contrainte n'est pas une précaution théorique : elle a été ajoutée après un faux
+positif réel, documenté en 4.5.
+
+Ces deux expressions sont complétées par des `pattern-not` sur les cas explicitement sûrs — chaîne
+vide, valeur nulle, valeur de remplacement inerte — et par un `pattern-not-regex` qui écarte les
+références à une variable d'environnement ou à une propriété Spring :
+
+```yaml
+- pattern-not: $TYPE $NAME = "";
+- pattern-not: $TYPE $NAME = null;
+- pattern-not-regex: \$\{[A-Za-z_][A-Za-z0-9_.:\-]*\}
+```
+
+Ce dernier point mérite une remarque technique : l'ellipse Semgrep ne s'applique pas à
+l'intérieur d'un littéral de chaîne Java. Un `pattern-not: $TYPE $NAME = "${...}";` ne fonctionne
+donc pas, et l'exclusion doit passer par une expression régulière. Une déclaration comme
+`private String secret = "${JWT_SECRET}";`, qui est exactement la bonne pratique, n'est ainsi
+jamais signalée.
+
+**Quatrième exemple — `metavariable-regex` dans R4 : cibler un drapeau contenant `secure`.**
+
+```yaml
+- patterns:
+    - pattern: boolean $FLAG = false;
+    - metavariable-regex:
+        metavariable: $FLAG
+        regex: (?i).*secure.*
+```
+
+C'est cette construction qui produit le finding réel sur `AppProperties.java:115`. Le motif seul,
+`boolean $FLAG = false;`, correspondrait à tous les drapeaux booléens du projet — dont
+`app.scheduling.enabled` ou `app.seed.enabled`, dont la valeur `false` par défaut n'a rien
+d'anormal. L'expression régulière restreint la règle aux seuls drapeaux qui gouvernent un
+attribut de sécurité. Le banc de test décrit en 4.4 vérifie précisément ce point : un
+`private boolean schedulingEnabled = false;` n'y est pas signalé.
+
+---
+
+### 4.4 Validation et résultats
+
+**Validation de la configuration.**
+
+```
+$ semgrep scan --validate --config .semgrep/rules.yaml
+Configuration is valid - found 0 configuration error(s), and 6 rule(s).
+```
+
+**Analyse locale du projet.** Les règles ont été exécutées sur le code applicatif uniquement,
+sans aucun ruleset distant :
+
+```
+$ semgrep scan --config .semgrep/rules.yaml backend/src/main/java frontend/src
+```
+
+| Indicateur | Valeur |
+|---|---|
+| Fichiers analysés | 154 |
+| Erreurs d'analyse | 0 |
+| Findings | **2** |
+
+| Règle | Findings | Localisation |
+|---|---|---|
+| R1 — Injection SQL / JPQL | 0 | — |
+| R2 — Injection de commande | 0 | — |
+| R3 — Secret codé en dur | 0 | — |
+| **R4 — Cookie non Secure** | **1** | `AppProperties.java:115` — `private boolean cookieSecure = false;` |
+| **R5 — CSRF désactivée** | **1** | `SecurityConfig.java:63` — `.csrf(AbstractHttpConfigurer::disable)` |
+| R6 — XSS React | 0 | — |
+
+Les deux findings correspondent respectivement aux constats **C3** et **C8** de l'analyse manuelle
+de la Partie 3. Cette convergence sera exploitée dans la comparaison manuel / automatisé de la
+Partie 6.
+
+**Vérification du déclenchement effectif des règles.** Un résultat « 0 finding » n'a de valeur que
+si la règle est capable de détecter quelque chose. Quatre des six règles n'en produisant aucun, il
+fallait démontrer qu'il s'agit bien d'une absence de motif dangereux dans le code, et non d'une
+règle inopérante.
+
+Les six règles ont donc été éprouvées sur un jeu de cas construit **en dehors du dépôt**, dans un
+répertoire temporaire : **ces fichiers de test ne font pas partie du repository et ne sont pas
+versionnés**. Ce jeu contient, pour chaque règle, des cas positifs qui doivent être signalés et
+des cas négatifs qui ne doivent pas l'être — requête paramétrée, `ProcessBuilder("tar", "czf",
+fichier)` sous forme de liste, chaîne vide, valeur nulle, placeholder `"${JWT_SECRET}"`, chaîne
+trop courte, drapeau booléen au nom anodin, exemption CSRF ciblée, contenu passé par
+`DOMPurify.sanitize`, et rendu par nœud texte.
+
+| Résultat attendu | Résultat obtenu |
+|---|---|
+| 16 findings | **16 findings** |
+| 0 faux positif | **0 faux positif** |
+
+Les six règles se déclenchent correctement sur les cas positifs, et l'ensemble des cas sûrs est
+écarté. Les quatre règles sans finding sur le projet sont donc bien opérationnelles : leur silence
+traduit l'absence du motif visé dans le code de SalaryTontine.
+
+---
+
+### 4.5 Gestion des faux positifs
+
+Deux problèmes ont été rencontrés lors de la conception de R3, tous deux détectés en exécutant la
+règle sur le code réel avant de la considérer comme terminée. Ils sont documentés ici parce qu'ils
+illustrent la différence entre une règle qui compile et une règle qui fonctionne.
+
+**Premier problème — le piège du guillemet en YAML.** La règle avait d'abord été écrite ainsi :
+
+```yaml
+- metavariable-pattern:
+    metavariable: $VALUE
+    pattern: "..."
+```
+
+L'intention était d'exiger que la valeur soit une chaîne littérale. Mais l'analyseur YAML retire
+les guillemets avant que Semgrep ne lise le motif : celui-ci devient `...`, c'est-à-dire l'ellipse
+Semgrep, qui accepte **n'importe quelle expression**. La règle signalait en conséquence des lignes
+parfaitement saines, où la valeur était un appel de méthode :
+
+```java
+// JwtService.java:33 — lecture depuis la configuration, aucun secret en dur
+String secret = properties.getJwt().getSecret();
+
+// UserService.java:116 — hachage BCrypt du nouveau mot de passe
+user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+```
+
+**Correction appliquée** : entourer le motif de guillemets simples, `pattern: '"..."'`, de sorte
+que Semgrep reçoive bien `"..."` et n'accepte qu'un littéral de chaîne. Les deux signalements ont
+disparu.
+
+**Second problème — une heuristique de nommage trop large.** Le mot-clé `credential` figurant dans
+l'expression régulière du nom, la règle signalait une constante de message :
+
+```java
+// AuthService.java:26
+private static final String INVALID_CREDENTIALS_MESSAGE = "Identifiants invalides.";
+```
+
+Le nom évoque bien un identifiant, mais la valeur est un libellé affiché à l'utilisateur — et non
+un secret. Élargir la liste des exclusions nominatives aurait été fragile : il aurait fallu
+prévoir `_MESSAGE`, `_LABEL`, `_ERROR`, et ainsi de suite.
+
+**Correction appliquée** : porter la contrainte sur la **forme de la valeur** plutôt que sur le
+nom, en exigeant au moins huit caractères contigus sans espace — `^"?[^\s"]{8,}"?$`. Un secret est
+un jeton d'un seul tenant ; un libellé destiné à un humain contient des espaces. Le signalement a
+disparu sans qu'aucun cas positif du banc de test ne soit perdu.
+
+**Une troisième observation, sans conséquence sur les résultats**, mérite d'être notée pour la
+suite : l'ellipse Semgrep ne s'applique pas à l'intérieur d'un littéral de chaîne Java. Le
+`pattern-not: $TYPE $NAME = "${...}";` initialement prévu pour écarter les placeholders de
+configuration était donc inopérant, et a été remplacé par un `pattern-not-regex`.
+
+Après ces corrections, la campagne de non-régression sur le banc de test a été rejouée : les seize
+findings attendus sont toujours obtenus, et le projet ne remonte plus que les deux findings
+légitimes de R4 et R5.
+
+---
+
+### Conclusion de la Partie 4
+
+Les six règles personnalisées satisfont l'ensemble des contraintes de l'examen : six règles pour
+un minimum de cinq, trois règles relevant de la catégorie Injection A03 — SQL/JPQL, commande
+système et XSS — pour un minimum de deux, une règle dédiée aux secrets codés en dur, quatorze
+occurrences de `pattern-not` complétées d'un `pattern-not-regex`, et trois occurrences de
+`metavariable-regex`. La configuration est validée sans erreur par Semgrep 1.175.0.
+
+L'exécution sur le code applicatif remonte **deux findings**, tous deux légitimes et tous deux
+déjà identifiés par l'analyse manuelle de la Partie 3 : la valeur par défaut du drapeau
+`cookieSecure` et la désactivation globale de la protection CSRF. Le second illustre précisément
+la limite d'une analyse purement automatisée : l'outil constate un fait exact, mais seule
+l'inspection humaine des quarante-deux endpoints permettait d'établir qu'il n'existe pas de
+vecteur exploitable dans le contexte actuel.
+
+Les quatre règles restantes ne produisent aucun finding, et cette absence est explicitement
+préventive : les motifs qu'elles visent — concaténation SQL, exécution de commande système, secret
+en dur, rendu HTML non échappé — **ne sont pas présents dans l'état actuel du projet**. Ces règles
+existent pour empêcher leur introduction lors d'une évolution future, et leur capacité effective à
+les détecter a été démontrée sur un banc de test tenu hors du dépôt.
+
+Enfin, conformément à la méthode adoptée depuis la Partie 3, **aucune correction applicative n'a
+été appliquée à ce stade**. Le code demeure dans son état d'origine, ce qui préserve la validité
+de la comparaison manuel / automatisé de la Partie 6 et de la démonstration avant / après de la
+Partie 7.
+
 ---
 
 ## 5. Pipeline DevSecOps
