@@ -1,0 +1,39 @@
+# Environment
+.env
+.env.local
+*.env
+!.env.example
+
+# Java / Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+!maven-wrapper.jar
+*.log
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+dist-ssr/
+coverage/
+*.local
+npm-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dev local (Makefile)
+.dev/
