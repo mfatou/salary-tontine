@@ -343,11 +343,13 @@ configuration de plateforme d'hébergement, ni pipeline de déploiement. Les env
 d'exécution locale ; la pile Docker Compose est la configuration la plus proche d'un
 déploiement, sans en être un.
 
-#### Brouillon de diagramme d'architecture
+#### Schéma technique intermédiaire
 
-> Ce schéma Mermaid est un **brouillon de travail**. Le diagramme définitif sera réalisé dans
-> draw.io et intégré ici. Il ne s'agit pas du DFD Threat Dragon : il ne comporte ni frontière
-> de confiance, ni menace, ni annotation STRIDE.
+> Le diagramme Mermaid suivant est un brouillon technique de l'architecture.
+> La version finalisée est présentée juste après.
+>
+> Il ne s'agit pas du DFD Threat Dragon : il ne comporte ni frontière de confiance, ni menace,
+> ni annotation STRIDE.
 
 ```mermaid
 flowchart TD
@@ -384,6 +386,13 @@ flowchart TD
     DB -->|Résultats| REPO
     CTRL -->|Réponses JSON| AX
 ```
+
+#### Architecture générale finalisée
+
+Le diagramme ci-dessous présente la version finalisée de l'architecture générale de
+SalaryTontine, en synthétisant les principaux composants applicatifs et leurs interactions.
+
+![Architecture générale finalisée de SalaryTontine](docs/architecture-salarytontine.png)
 
 ---
 
