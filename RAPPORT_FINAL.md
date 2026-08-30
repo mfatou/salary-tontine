@@ -398,11 +398,179 @@ SalaryTontine, en synthétisant les principaux composants applicatifs et leurs i
 
 ## 2. Threat Modeling
 
+Le modèle de menaces a été construit dans **OWASP Threat Dragon 2.0** et exporté dans
+`threat-model_mame-fatou-laye-diop.json`. Il contient un diagramme de type STRIDE intitulé
+« DFD SalaryTontine », composé de 20 éléments.
+
 ### 2.1 DFD et Frontières de Confiance
+
+![DFD SalaryTontine dans OWASP Threat Dragon](docs/threat-model-salarytontine.png)
+
+#### Acteurs
+
+Les trois acteurs correspondent exactement aux rôles de l'énumération `Role.java`. Ils sont
+externes au système : l'application ne contrôle ni leur poste, ni leur navigateur, ni leur
+comportement.
+
+| Acteur | Rôle dans le système |
+|---|---|
+| `EMPLOYEE` | Consulte son salaire simulé, demande à rejoindre une tontine, quitte une tontine non démarrée |
+| `ACCOUNTANT` | Gère les tontines, arbitre les adhésions, consulte et corrige les salaires de base |
+| `ADMIN` | Valide les inscriptions, attribue les rôles, consulte le journal d'audit |
+
+#### Processus
+
+| Processus | Description |
+|---|---|
+| Navigateur / React SPA | Application monopage exécutée sur le poste de l'utilisateur. Elle assemble les requêtes et affiche les réponses ; elle ne détient aucun secret et n'applique aucun contrôle d'accès opposable |
+| Spring Boot REST API + Spring Security / JWT | Point d'entrée unique du système. Vérifie la signature du jeton, contrôle le statut du compte, applique les autorisations de rôle et valide les DTO |
+| Services métier | Couche transactionnelle : règles de tontine, capacité de cotisation, séparation des tâches, calculs salariaux |
+| `MonthlyRunScheduler` | Déclencheur temporel interne. Il n'est associé à aucun acteur : c'est le seul processus qui agit sans utilisateur à l'origine |
+
+#### Store
+
+Un seul magasin de données : **PostgreSQL 16**, qui persiste l'ensemble des sept tables métier
+— comptes, tontines, participations, demandes d'adhésion, cotisations, salaires simulés et
+journal d'audit. C'est le point de concentration de toutes les données sensibles de
+l'application.
+
+#### Flux de données
+
+Dix flux sont modélisés, annotés du type de données transportées et du protocole employé.
+
+| Flux | Données transportées | Protocole |
+|---|---|---|
+| Actions `EMPLOYEE` → SPA | Saisies de formulaire, navigation | Interface graphique |
+| Actions `ACCOUNTANT` → SPA | Saisies de formulaire, décisions d'arbitrage | Interface graphique |
+| Actions `ADMIN` → SPA | Saisies de formulaire, décisions de validation | Interface graphique |
+| SPA → API | Requêtes HTTP/JSON accompagnées du cookie JWT transmis par le navigateur | HTTP/JSON, authentifié |
+| API → SPA | Réponses JSON et en-tête `Set-Cookie` à la connexion | HTTP/JSON, authentifié |
+| API → Services métier | Utilisateur authentifié, rôle, DTO validés | Appel interne |
+| Services métier → API | Résultats métier | Appel interne |
+| Services métier → PostgreSQL | Lectures et écritures : utilisateurs, tontines, cotisations, salaires, audit | JPA/JDBC |
+| PostgreSQL → Services métier | Résultats de requêtes | JPA/JDBC |
+| `MonthlyRunScheduler` → Services métier | Tours échus à traiter | `@Scheduled` |
+
+#### Frontières de confiance
+
+Deux frontières délimitent les changements de niveau de confiance. Elles ont été placées
+avant les composants, selon le principe que **chaque flux qui traverse une frontière est une
+menace potentielle**.
+
+**TB1 — Navigateur / Backend applicatif.** Elle sépare ce que l'utilisateur contrôle de ce que
+l'application contrôle. Tout ce qui se trouve du côté navigateur — le code React, les valeurs
+saisies, les identifiants de ressources, le cookie lui-même — est manipulable par le
+propriétaire du poste. Cette frontière justifie que les gardes `ProtectedRoute` et
+`RoleProtectedRoute` ne soient jamais considérées comme un contrôle d'accès : elles s'exécutent
+du mauvais côté de la frontière. Deux flux la traversent, dans les deux sens, et portent à la
+fois les identifiants de connexion et le jeton d'authentification.
+
+**TB2 — Backend applicatif / PostgreSQL.** Elle sépare la couche qui applique les règles
+métier de celle qui détient les données. Un accès qui franchirait cette frontière sans passer
+par les services — connexion directe à la base — contournerait l'intégralité des règles de
+tontine, de la séparation des tâches et de la validation. Seules subsisteraient les contraintes
+SQL portées par le schéma. Deux flux la traversent, dans les deux sens.
+
+Le `MonthlyRunScheduler` occupe une position particulière : il se situe **à l'intérieur** de
+la frontière applicative et n'est déclenché par aucun acteur. Il ne traverse donc TB1 à aucun
+moment, mais ses écritures franchissent TB2 comme celles de tout autre service.
 
 ### 2.2 Analyse STRIDE
 
+Huit menaces ont été documentées, réparties sur quatre composants et flux, et couvrant les
+**six catégories STRIDE** — au-delà du minimum de cinq exigé.
+
+| # | Composant / Flux | Catégorie STRIDE | Description de la menace | Sévérité | Mitigation proposée |
+|---|---|---|---|---|---|
+| 1 | Spring Boot REST API | Elevation of privilege | Un utilisateur tente d'accéder à une fonction privilégiée en manipulant son rôle côté client, un identifiant de ressource ou un jeton | **High** | Vérifier la signature JWT, contrôler le statut `ACTIVE` en base, appliquer `@PreAuthorize` et les contrôles d'autorisation côté backend, et ne jamais considérer les gardes React comme un contrôle de sécurité |
+| 2 | Spring Boot REST API | Denial of service | Des requêtes répétées sur `/api/auth/login` ou `/api/auth/register` consomment des ressources et empêchent les utilisateurs légitimes d'accéder au service | Medium | Ajouter une limitation de débit sur les endpoints publics sensibles, limiter les tentatives, journaliser les abus et prévoir des seuils adaptés |
+| 3 | Spring Boot REST API | Information disclosure | Une erreur de contrôle d'accès, au niveau d'un endpoint ou d'un objet, expose le salaire de base, l'historique salarial, les cotisations ou les données de tontine d'un autre utilisateur | **High** | Appliquer le contrôle de rôle et l'autorisation au niveau objet côté serveur, filtrer les ressources selon l'utilisateur courant, utiliser des DTO minimaux, et tester les accès croisés entre les trois rôles |
+| 4 | Services métier | Repudiation | Un `ACCOUNTANT` ou un `ADMIN` conteste une modification de salaire, une décision d'adhésion ou une opération sur une tontine, la piste d'audit étant incomplète ou modifiable | Medium | Auditer toute action sensible avec auteur, horodatage, cible et contexte ; protéger l'intégrité des `audit_logs` et envisager un stockage en ajout seul ou une centralisation externe |
+| 5 | PostgreSQL 16 | Tampering | Un accès non autorisé à la base permet de modifier `salary_records`, `contributions`, les rôles, `turn_order` ou `audit_logs` en contournant les règles métier | **High** | Restreindre PostgreSQL au réseau interne en production, appliquer le moindre privilège au compte de base, ne pas publier inutilement le port, conserver les contraintes SQL, mettre en place sauvegardes et contrôles d'intégrité |
+| 6 | Flux SPA → API (cookie JWT) | Spoofing | Un attaquant qui obtient le cookie JWT rejoue le jeton et agit au nom de sa victime jusqu'à expiration. Le risque est majeur pour un compte `ACCOUNTANT` ou `ADMIN` | **High** | Conserver le JWT en cookie `HttpOnly`, imposer HTTPS et `Secure=true` en production, maintenir une durée de vie courte, protéger et faire tourner `JWT_SECRET`, prévoir révocation et rotation |
+| 7 | Flux SPA → API | Tampering | Le client modifie identifiants, montants, paramètres ou ordres envoyés dans les requêtes afin d'altérer une tontine, une adhésion, une cotisation ou un calcul salarial | **High** | Valider toutes les entrées côté serveur, dériver l'identité du JWT vérifié, ne jamais accepter un calcul salarial fourni par le client, appliquer les règles dans les services et conserver les contraintes d'intégrité en base |
+| 8 | Flux SPA → API | Information disclosure | Déployée sans TLS, l'application laisse intercepter en transit les identifiants, les réponses métier et le cookie d'authentification | **High** | Imposer HTTPS/TLS en production, activer `Secure=true` sur le cookie, ajouter HSTS et refuser les accès non chiffrés |
+
+**Couverture obtenue**
+
+| Catégorie STRIDE | Menaces |
+|---|---|
+| Spoofing | 1 (n° 6) |
+| Tampering | 2 (n° 5, 7) |
+| Repudiation | 1 (n° 4) |
+| Information disclosure | 2 (n° 3, 8) |
+| Denial of service | 1 (n° 2) |
+| Elevation of privilege | 1 (n° 1) |
+
+Six menaces sont de sévérité **High**, deux de sévérité **Medium**. Cette répartition n'est pas
+fortuite : les menaces concentrées sur l'API et sur le flux qui traverse TB1 touchent
+directement la confidentialité des salaires et l'intégrité du cycle de tontine, tandis que
+celles de sévérité moindre — saturation et répudiation — dégradent le service ou la traçabilité
+sans exposer ni altérer directement les données.
+
 ### 2.3 Priorisation des Menaces
+
+#### Classement
+
+| Rang | # | Menace | Catégorie | Sévérité |
+|---|---|---|---|---|
+| 1 | 1 | Élévation de privilèges vers `ACCOUNTANT` ou `ADMIN` | Elevation of privilege | High |
+| 2 | 6 | Usurpation d'identité par vol ou rejeu du JWT | Spoofing | High |
+| 3 | 3 | Divulgation de salaires ou de données d'un autre utilisateur | Information disclosure | High |
+| 4 | 7 | Altération des données métier envoyées par le client | Tampering | High |
+| 5 | 8 | Interception de données sensibles faute de TLS | Information disclosure | High |
+| 6 | 5 | Altération directe des données en base | Tampering | High |
+| 7 | 4 | Déni d'une action sensible insuffisamment traçable | Repudiation | Medium |
+| 8 | 2 | Saturation des endpoints d'authentification | Denial of service | Medium |
+
+Le classement ne suit pas la seule sévérité : à sévérité égale, il départage selon la
+**facilité d'exploitation** et selon l'**ampleur du dommage dans le contexte métier de
+SalaryTontine**, à savoir la confidentialité des rémunérations et l'équité du cycle de tontine.
+
+#### Justification des trois menaces les plus critiques
+
+**1 — Élévation de privilèges (n° 1).** C'est la menace la plus grave parce qu'elle ne
+compromet pas une donnée, mais **le modèle de sécurité entier**. Toute la conception de
+SalaryTontine repose sur une séparation des tâches : personne ne fixe son propre salaire, ne
+s'ajoute soi-même à une tontine, ni n'accepte sa propre demande d'adhésion. Ces trois règles
+supposent qu'un utilisateur ne peut pas changer de rôle. Un `EMPLOYEE` devenu `ACCOUNTANT`
+accède d'un coup au salaire de base de tous ses collègues, peut les modifier, et peut
+s'attribuer un ordre de passage favorable dans une tontine — donc encaisser la cagnotte avant
+d'avoir cotisé. Le dommage est simultanément une atteinte à la confidentialité et à
+l'intégrité, et il est silencieux : rien dans l'interface ne le signalerait aux autres
+participants. La surface est par ailleurs large, puisqu'elle couvre les 42 routes de l'API.
+
+**2 — Usurpation d'identité par vol ou rejeu du JWT (n° 6).** Le jeton est la **seule preuve
+d'identité** de l'application : aucune session serveur ne double l'authentification, et
+`SessionCreationPolicy.STATELESS` en fait le point unique de confiance. Quiconque le détient
+agit au nom de son porteur, sans mot de passe. Deux caractéristiques du contexte aggravent
+cette menace. D'abord, l'attribut `Secure` du cookie est piloté par `JWT_COOKIE_SECURE`, dont
+la valeur par défaut est `false` : hors HTTPS, le jeton circule en clair. Ensuite, il n'existe
+aucun mécanisme de révocation — la déconnexion efface le cookie côté navigateur, mais un jeton
+déjà capté reste valide jusqu'à son expiration, une heure par défaut. Le seul garde-fou est le
+contrôle de statut à chaque requête, qui ne bloque que les comptes devenus non `ACTIVE`. Une
+usurpation de compte `ACCOUNTANT` donne accès à l'ensemble des salaires pendant toute cette
+fenêtre.
+
+**3 — Divulgation de salaires (n° 3).** Le salaire est la donnée la plus sensible de
+l'application, et sa confidentialité en est la promesse centrale. Cette menace se place au
+troisième rang plutôt qu'au premier parce qu'elle expose sans altérer : elle rompt la
+confidentialité, non l'intégrité du cycle. Mais elle est **plus difficile à détecter** que les
+deux précédentes. Une élévation de privilèges laisse une trace dans le journal d'audit ; une
+lecture non autorisée d'une ressource d'autrui, si elle passe par un endpoint légitime avec un
+identifiant qui n'est pas le sien, peut n'en laisser aucune. Le contexte métier aggrave la
+conséquence : dans une entreprise, la divulgation des rémunérations produit un dommage social
+durable, que la correction technique de la faille ne répare pas.
+
+**Pourquoi les autres menaces viennent ensuite.** L'altération des données envoyées par le
+client (n° 7) est de sévérité identique, mais sa surface est bornée par la validation Jakarta
+et par le fait que les calculs monétaires ne sont jamais acceptés du client. L'interception
+faute de TLS (n° 8) et l'altération directe en base (n° 5) supposent toutes deux un
+prérequis extérieur à l'application — un réseau non chiffré, ou un accès déjà obtenu à
+l'infrastructure. La répudiation (n° 4) est réelle mais partiellement couverte par
+`AuditService`. La saturation des endpoints d'authentification (n° 2) dégrade la disponibilité
+d'un outil de simulation interne, dont l'indisponibilité temporaire n'a pas de conséquence
+financière directe.
 
 ---
 

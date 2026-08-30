@@ -1,0 +1,975 @@
+{
+  "summary": {
+    "title": "SalaryTontine - Threat Model",
+    "owner": "Mame Fatou Laye Diop",
+    "description": "DFD et analyse STRIDE de SalaryTontine pour l'examen DevSecOps 2INF2311. Le modèle représente les acteurs EMPLOYEE, ACCOUNTANT et ADMIN, le navigateur/React SPA, le backend Spring Boot, les services métier, le scheduler et PostgreSQL, avec deux frontières de confiance et des flux de données annotés.",
+    "id": 0
+  },
+  "detail": {
+    "contributors": [
+      {
+        "name": "Mame Fatou Laye Diop"
+      }
+    ],
+    "diagrams": [
+      {
+        "cells": [
+          {
+            "shape": "trust-boundary-curve",
+            "attrs": {
+              "line": {
+                "targetMarker": "",
+                "sourceMarker": ""
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 2,
+            "connector": "smooth",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "text": {
+                    "text": "TB1 - Navigateur / Backend applicatif"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Boundary",
+              "name": "TB1 - Navigateur / Backend applicatif",
+              "description": "Sépare la zone cliente exécutée dans le navigateur du backend Spring Boot. Toute donnée traversant cette frontière est considérée comme non fiable et doit être authentifiée, autorisée et validée côté serveur.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            },
+            "id": "b446283e-24c1-4922-8167-a076d4949aca",
+            "source": {
+              "x": 390,
+              "y": 40
+            },
+            "target": {
+              "x": 390,
+              "y": 660
+            },
+            "vertices": []
+          },
+          {
+            "shape": "trust-boundary-curve",
+            "attrs": {
+              "line": {
+                "targetMarker": "",
+                "sourceMarker": ""
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 2,
+            "connector": "smooth",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "text": {
+                    "text": "TB2 - Backend applicatif / PostgreSQL"
+                  }
+                }
+              }
+            ],
+            "data": {
+              "type": "tm.Boundary",
+              "name": "TB2 - Backend applicatif / PostgreSQL",
+              "description": "Sépare la couche applicative Spring Boot de la base PostgreSQL. L'accès aux données persistées doit passer par le backend et respecter les contrôles d'accès, les règles métier et les contraintes d'intégrité.",
+              "isTrustBoundary": true,
+              "hasOpenThreats": false
+            },
+            "id": "1b45514f-952e-492f-81e2-6272c24a2676",
+            "source": {
+              "x": 860,
+              "y": 40
+            },
+            "target": {
+              "x": 860,
+              "y": 660
+            },
+            "vertices": []
+          },
+          {
+            "position": {
+              "x": 30,
+              "y": 80
+            },
+            "size": {
+              "width": 150,
+              "height": 70
+            },
+            "attrs": {
+              "text": {
+                "text": "EMPLOYEE"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "shape": "actor",
+            "zIndex": 3,
+            "id": "34d17699-aee1-4759-8724-547cfc9b7f6f",
+            "data": {
+              "name": "EMPLOYEE",
+              "description": "Acteur externe avec le rôle EMPLOYEE.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 30,
+              "y": 285
+            },
+            "size": {
+              "width": 150,
+              "height": 70
+            },
+            "attrs": {
+              "text": {
+                "text": "ACCOUNTANT"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "shape": "actor",
+            "zIndex": 3,
+            "id": "09cc9a08-e7d5-4501-ba0d-5885a44d62c2",
+            "data": {
+              "name": "ACCOUNTANT",
+              "description": "Acteur externe avec le rôle ACCOUNTANT.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 30,
+              "y": 490
+            },
+            "size": {
+              "width": 150,
+              "height": 70
+            },
+            "attrs": {
+              "text": {
+                "text": "ADMIN"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "shape": "actor",
+            "zIndex": 3,
+            "id": "e8369267-d8d2-486c-b839-a219eebd3f6f",
+            "data": {
+              "name": "ADMIN",
+              "description": "Acteur externe avec le rôle ADMIN.",
+              "type": "tm.Actor",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [],
+              "hasOpenThreats": false,
+              "providesAuthentication": false
+            }
+          },
+          {
+            "position": {
+              "x": 220,
+              "y": 285
+            },
+            "size": {
+              "width": 150,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Navigateur / React SPA"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "shape": "process",
+            "zIndex": 4,
+            "id": "849d3369-2a94-4549-b65d-29b6a47c371d",
+            "data": {
+              "name": "Navigateur / React SPA",
+              "description": "Frontend React/TypeScript exécuté dans le navigateur. AuthContext conserve l'utilisateur courant en mémoire. Axios utilise withCredentials=true ; le navigateur conserve et transmet automatiquement le cookie JWT HttpOnly, que le code JavaScript ne lit pas directement.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [],
+              "hasOpenThreats": false,
+              "isWebApplication": true
+            }
+          },
+          {
+            "position": {
+              "x": 470,
+              "y": 220
+            },
+            "size": {
+              "width": 150,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Spring Boot REST API\n+ Spring Security / JWT"
+              },
+              "body": {
+                "stroke": "red",
+                "strokeWidth": 3,
+                "strokeDasharray": null
+              }
+            },
+            "shape": "process",
+            "zIndex": 4,
+            "id": "fb8b7f65-cb6e-420a-804e-c506ec240041",
+            "data": {
+              "name": "Spring Boot REST API\n+ Spring Security / JWT",
+              "description": "API REST Java/Spring Boot. Authentification JWT par cookie, contrôle du statut du compte, autorisations Spring Security et @PreAuthorize.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "title": "Élévation de privilèges EMPLOYEE vers ACCOUNTANT ou ADMIN",
+                  "type": "Elevation of privilege",
+                  "description": "Un utilisateur pourrait tenter d'accéder à une fonction privilégiée en manipulant son rôle côté client, un identifiant de ressource ou un jeton.",
+                  "mitigation": "Vérifier la signature JWT, contrôler le statut ACTIVE en base, appliquer @PreAuthorize et les contrôles d'autorisation côté backend, et ne jamais considérer les gardes React comme un contrôle de sécurité.",
+                  "modelType": "STRIDE",
+                  "id": "64ffb077-9ba2-4ec4-b4dc-d98899627f5d"
+                },
+                {
+                  "status": "Open",
+                  "severity": "Medium",
+                  "title": "Saturation des endpoints d'authentification",
+                  "type": "Denial of service",
+                  "description": "Des requêtes répétées sur /api/auth/login ou /api/auth/register peuvent consommer des ressources et empêcher les utilisateurs légitimes d'accéder au service.",
+                  "mitigation": "Ajouter un rate limiting sur les endpoints publics sensibles, limiter les tentatives, journaliser les abus et prévoir des seuils de protection adaptés.",
+                  "modelType": "STRIDE",
+                  "id": "5b6f9112-4e7d-4d09-8193-d49b75ac2ee7"
+                },
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "title": "Divulgation de salaires ou de données d'un autre utilisateur",
+                  "type": "Information disclosure",
+                  "description": "Une erreur de contrôle d'accès au niveau d'un endpoint ou d'un objet pourrait exposer le salaire de base, l'historique salarial, les cotisations ou les données de tontine d'un autre utilisateur.",
+                  "mitigation": "Appliquer RBAC et autorisation au niveau objet côté serveur, filtrer les ressources selon l'utilisateur courant, utiliser des DTO minimaux, et tester systématiquement les accès croisés entre EMPLOYEE, ACCOUNTANT et ADMIN.",
+                  "modelType": "STRIDE",
+                  "id": "ea0616b2-8468-4a1c-9d00-f1edcba0325f"
+                }
+              ],
+              "hasOpenThreats": true,
+              "isWebApplication": true
+            }
+          },
+          {
+            "position": {
+              "x": 665,
+              "y": 320
+            },
+            "size": {
+              "width": 150,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "Services métier"
+              },
+              "body": {
+                "stroke": "red",
+                "strokeWidth": 3,
+                "strokeDasharray": null
+              }
+            },
+            "shape": "process",
+            "zIndex": 4,
+            "id": "c4c46d04-6ae4-46fd-b165-ab082dc350cd",
+            "data": {
+              "name": "Services métier",
+              "description": "Logique métier : utilisateurs, tontines, adhésions, contributions, calculs salariaux et audit.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "Medium",
+                  "title": "Déni d'une action sensible insuffisamment traçable",
+                  "type": "Repudiation",
+                  "description": "Un ACCOUNTANT ou un ADMIN pourrait contester une modification de salaire, une décision d'adhésion ou une opération sur une tontine si la piste d'audit est incomplète ou modifiable.",
+                  "mitigation": "Auditer toutes les actions sensibles avec auteur, horodatage, cible et contexte; protéger l'intégrité des audit_logs et envisager un stockage append-only ou une centralisation externe pour les événements critiques.",
+                  "modelType": "STRIDE",
+                  "id": "488f3dde-1d2c-4a18-9fd5-78399d83b2db"
+                }
+              ],
+              "hasOpenThreats": true,
+              "isWebApplication": false
+            }
+          },
+          {
+            "position": {
+              "x": 665,
+              "y": 510
+            },
+            "size": {
+              "width": 150,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "MonthlyRunScheduler"
+              },
+              "body": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "strokeDasharray": null
+              }
+            },
+            "shape": "process",
+            "zIndex": 4,
+            "id": "9349c10c-6bf5-428d-81a0-efb95e251d98",
+            "data": {
+              "name": "MonthlyRunScheduler",
+              "description": "Traitement @Scheduled déclenchant les tours échus via les services métier.",
+              "type": "tm.Process",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [],
+              "hasOpenThreats": false,
+              "isWebApplication": false
+            }
+          },
+          {
+            "position": {
+              "x": 960,
+              "y": 285
+            },
+            "size": {
+              "width": 170,
+              "height": 90
+            },
+            "attrs": {
+              "text": {
+                "text": "PostgreSQL 16"
+              },
+              "topLine": {
+                "stroke": "red",
+                "strokeWidth": 3,
+                "strokeDasharray": null
+              },
+              "bottomLine": {
+                "stroke": "red",
+                "strokeWidth": 3,
+                "strokeDasharray": null
+              }
+            },
+            "shape": "store",
+            "id": "d6e11331-41f4-410b-adea-8c7abd4b87df",
+            "zIndex": 4,
+            "data": {
+              "name": "PostgreSQL 16",
+              "description": "PostgreSQL 16 stockant les sept tables métier : users, tontines, tontine_members, tontine_join_requests, contributions, salary_records et audit_logs. La table technique flyway_schema_history est gérée par Flyway.",
+              "type": "tm.Store",
+              "isTrustBoundary": false,
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "title": "Altération directe des salaires, cotisations ou journaux en base",
+                  "type": "Tampering",
+                  "description": "Un accès non autorisé à PostgreSQL pourrait permettre de modifier des salary_records, contributions, rôles, turn_order ou audit_logs en contournant les règles métier du backend.",
+                  "mitigation": "Restreindre PostgreSQL au réseau interne en production, appliquer le moindre privilège au compte BDD, ne pas publier inutilement le port BDD, conserver les contraintes SQL et mettre en place sauvegardes et contrôles d'intégrité.",
+                  "modelType": "STRIDE",
+                  "id": "58c821c7-a305-499a-b12f-657d2ebe6ec7"
+                }
+              ],
+              "hasOpenThreats": true,
+              "isALog": false,
+              "storesCredentials": true,
+              "isEncrypted": false,
+              "isSigned": false
+            }
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Actions EMPLOYEE",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "UI",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "hasOpenThreats": false,
+              "threats": [],
+              "isTrustBoundary": false
+            },
+            "id": "824d9a9f-6cea-4d20-83a2-1a5ea8ad2694",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Actions EMPLOYEE (UI)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "34d17699-aee1-4759-8724-547cfc9b7f6f"
+            },
+            "target": {
+              "cell": "849d3369-2a94-4549-b65d-29b6a47c371d"
+            },
+            "vertices": []
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Actions ACCOUNTANT",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "UI",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "hasOpenThreats": false,
+              "threats": [],
+              "isTrustBoundary": false
+            },
+            "id": "03a4f1c4-a42c-4b77-98a2-a75bda9b2cdb",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Actions ACCOUNTANT (UI)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "09cc9a08-e7d5-4501-ba0d-5885a44d62c2"
+            },
+            "target": {
+              "cell": "849d3369-2a94-4549-b65d-29b6a47c371d"
+            },
+            "vertices": []
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Actions ADMIN",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "UI",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "hasOpenThreats": false,
+              "threats": [],
+              "isTrustBoundary": false
+            },
+            "id": "bf52133d-c490-43b2-bf87-950edf6f15cc",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Actions ADMIN (UI)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "e8369267-d8d2-486c-b839-a219eebd3f6f"
+            },
+            "target": {
+              "cell": "849d3369-2a94-4549-b65d-29b6a47c371d"
+            },
+            "vertices": []
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "red",
+                "strokeWidth": 2,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Requêtes HTTP/JSON + cookie JWT transmis par le navigateur",
+              "description": "Le navigateur transmet les requêtes issues de la SPA ainsi que le cookie JWT HttpOnly. Les données incluent credentials, identifiants de ressources, paramètres et données métier.",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTP/JSON",
+              "isEncrypted": false,
+              "isPublicNetwork": true,
+              "hasOpenThreats": true,
+              "threats": [
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "title": "Usurpation d'identité par vol ou rejeu du JWT",
+                  "type": "Spoofing",
+                  "description": "Un attaquant qui obtient le cookie JWT d'un utilisateur pourrait rejouer le jeton et agir en son nom jusqu'à son expiration. Le risque est particulièrement important pour un compte ACCOUNTANT ou ADMIN.",
+                  "mitigation": "Conserver le JWT en cookie HttpOnly, imposer HTTPS et Secure=true en production, maintenir une durée de vie courte, protéger et faire tourner JWT_SECRET, et prévoir un mécanisme de révocation/rotation pour les cas sensibles.",
+                  "modelType": "STRIDE",
+                  "id": "bc6bebbe-62ff-4156-bae7-e9672db8d4c2"
+                },
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "title": "Altération des données métier envoyées par le client",
+                  "type": "Tampering",
+                  "description": "Un client peut modifier les identifiants, montants, paramètres ou ordres envoyés dans les requêtes HTTP afin de tenter d'altérer une tontine, une adhésion, une cotisation ou un calcul salarial.",
+                  "mitigation": "Valider toutes les entrées côté serveur, dériver l'identité depuis le JWT vérifié, ne jamais utiliser un calcul salarial fourni par le client, appliquer les règles métier dans les services et conserver les contraintes d'intégrité en base.",
+                  "modelType": "STRIDE",
+                  "id": "6b93a57d-a7bb-4151-b0a0-f10b5a5c85db"
+                },
+                {
+                  "status": "Open",
+                  "severity": "High",
+                  "title": "Interception de données sensibles sur le flux client-serveur",
+                  "type": "Information disclosure",
+                  "description": "Si l'application est déployée sans TLS, les identifiants, réponses métier et cookie d'authentification peuvent être interceptés en transit.",
+                  "mitigation": "Imposer HTTPS/TLS en production, activer Secure=true sur le cookie JWT, ajouter HSTS et refuser les accès HTTP non chiffrés.",
+                  "modelType": "STRIDE",
+                  "id": "dc5b8418-620f-4c09-8536-8ef340754203"
+                }
+              ],
+              "isTrustBoundary": false
+            },
+            "id": "cc2cc06b-eae1-4326-8b0e-3183e8eab90f",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Requêtes HTTP/JSON + cookie JWT transmis par le navigateur"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "849d3369-2a94-4549-b65d-29b6a47c371d"
+            },
+            "target": {
+              "cell": "fb8b7f65-cb6e-420a-804e-c506ec240041"
+            },
+            "vertices": [
+              {
+                "x": 420,
+                "y": 300
+              }
+            ]
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Réponses JSON + en-tête Set-Cookie",
+              "description": "Le backend renvoie les réponses JSON et, lors de l'authentification, l'en-tête Set-Cookie permettant au navigateur de stocker le JWT HttpOnly.",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "HTTP/JSON",
+              "isEncrypted": false,
+              "isPublicNetwork": true,
+              "hasOpenThreats": false,
+              "threats": [],
+              "isTrustBoundary": false
+            },
+            "id": "2bb91742-7717-493e-8821-e406b2c35595",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Réponses JSON + en-tête Set-Cookie"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "fb8b7f65-cb6e-420a-804e-c506ec240041"
+            },
+            "target": {
+              "cell": "849d3369-2a94-4549-b65d-29b6a47c371d"
+            },
+            "vertices": [
+              {
+                "x": 420,
+                "y": 410
+              }
+            ]
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Utilisateur authentifié, rôle, DTO validés",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "Appel interne",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "hasOpenThreats": false,
+              "threats": [],
+              "isTrustBoundary": false
+            },
+            "id": "8502757c-5232-48fa-b8cf-87bcaf2c59f7",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Utilisateur authentifié, rôle, DTO validés (Appel interne)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "fb8b7f65-cb6e-420a-804e-c506ec240041"
+            },
+            "target": {
+              "cell": "c4c46d04-6ae4-46fd-b165-ab082dc350cd"
+            },
+            "vertices": []
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Résultats métier",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "Appel interne",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "hasOpenThreats": false,
+              "threats": [],
+              "isTrustBoundary": false
+            },
+            "id": "751ae5e3-0049-4fa6-91bf-a623dda2e9ad",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Résultats métier (Appel interne)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "c4c46d04-6ae4-46fd-b165-ab082dc350cd"
+            },
+            "target": {
+              "cell": "fb8b7f65-cb6e-420a-804e-c506ec240041"
+            },
+            "vertices": [
+              {
+                "x": 600,
+                "y": 430
+              }
+            ]
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Requêtes / écritures JPA : utilisateurs, tontines, cotisations, salaires, audit",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "JPA/JDBC",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "hasOpenThreats": false,
+              "threats": [],
+              "isTrustBoundary": false
+            },
+            "id": "b60a9f51-4b43-44c0-9c3a-9cec86a5d4ff",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Requêtes / écritures JPA : utilisateurs, tontines, cotisations, salaires, audit (JPA/JDBC)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "c4c46d04-6ae4-46fd-b165-ab082dc350cd"
+            },
+            "target": {
+              "cell": "d6e11331-41f4-410b-adea-8c7abd4b87df"
+            },
+            "vertices": []
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Résultats de requêtes",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "JPA/JDBC",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "hasOpenThreats": false,
+              "threats": [],
+              "isTrustBoundary": false
+            },
+            "id": "5391a939-a2f6-4eaf-b8b2-72ed41029c21",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Résultats de requêtes (JPA/JDBC)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "d6e11331-41f4-410b-adea-8c7abd4b87df"
+            },
+            "target": {
+              "cell": "c4c46d04-6ae4-46fd-b165-ab082dc350cd"
+            },
+            "vertices": [
+              {
+                "x": 875,
+                "y": 450
+              }
+            ]
+          },
+          {
+            "shape": "flow",
+            "attrs": {
+              "line": {
+                "stroke": "#333333",
+                "strokeWidth": 1,
+                "targetMarker": {
+                  "name": "block"
+                },
+                "strokeDasharray": null
+              }
+            },
+            "width": 200,
+            "height": 100,
+            "zIndex": 10,
+            "connector": "smooth",
+            "data": {
+              "type": "tm.Flow",
+              "name": "Tours échus à traiter",
+              "description": "",
+              "outOfScope": false,
+              "reasonOutOfScope": "",
+              "protocol": "@Scheduled",
+              "isEncrypted": false,
+              "isPublicNetwork": false,
+              "hasOpenThreats": false,
+              "threats": [],
+              "isTrustBoundary": false
+            },
+            "id": "da7fe980-aa9d-4c6c-ba6d-2404b0f4b62d",
+            "labels": [
+              {
+                "position": 0.5,
+                "attrs": {
+                  "label": {
+                    "text": "Tours échus à traiter (@Scheduled)"
+                  }
+                }
+              }
+            ],
+            "source": {
+              "cell": "9349c10c-6bf5-428d-81a0-efb95e251d98"
+            },
+            "target": {
+              "cell": "c4c46d04-6ae4-46fd-b165-ab082dc350cd"
+            },
+            "vertices": []
+          }
+        ],
+        "version": "2.0",
+        "title": "DFD SalaryTontine",
+        "description": "DFD principal de SalaryTontine avec deux frontières de confiance : navigateur/backend applicatif et backend applicatif/PostgreSQL.",
+        "thumbnail": "./public/content/images/thumbnail.stride.jpg",
+        "diagramType": "STRIDE",
+        "id": 0
+      }
+    ],
+    "diagramTop": 1,
+    "reviewer": "",
+    "threatTop": 8
+  },
+  "version": "2.0"
+}
