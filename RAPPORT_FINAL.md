@@ -1718,17 +1718,591 @@ Partie 7.
 
 ### 5.1 Architecture de la Pipeline
 
+La pipeline est définie dans un fichier unique, `.github/workflows/devsecops.yml`, et se compose
+de **cinq jobs**. Les trois premiers sont des contrôles de sécurité indépendants qui s'exécutent
+en parallèle ; le quatrième construit et analyse les images Docker, mais uniquement si les trois
+précédents ont réussi ; le cinquième produit le récapitulatif et s'exécute quoi qu'il arrive.
+
+```
+gitleaks ─┐
+sast ─────┼──► docker-build-and-scan ──┐
+sca ──────┘                            │
+   │  │  │                             │
+   └──┴──┴─────────────────────────────┴──► summary  (if: always())
+```
+
+| Job | Rôle | Outils | Dépendances |
+|---|---|---|---|
+| `gitleaks` | Détection de secrets | GitLeaks | aucune |
+| `sast` | Analyse statique du code | Semgrep | aucune |
+| `sca` | Analyse des dépendances | Snyk, Trivy filesystem | aucune |
+| `docker-build-and-scan` | Construction et analyse des images | Docker Buildx, Trivy image | `gitleaks`, `sast`, `sca` |
+| `summary` | Récapitulatif dans GitHub Summary | — | les quatre précédents |
+
+#### Le security gate
+
+La dépendance exigée par le sujet est portée par le job de build :
+
+```yaml
+docker-build-and-scan:
+  needs:
+    - gitleaks
+    - sast
+    - sca
+```
+
+La conséquence est directe : **aucune image n'est construite tant que la détection de secrets,
+l'analyse statique et l'analyse des dépendances n'ont pas toutes réussi.** Si l'un de ces trois
+jobs échoue, GitHub place `docker-build-and-scan` au statut `skipped` sans exécuter la moindre
+étape. Le premier run l'a effectivement démontré, comme le documente la Partie 6.
+
+Le job `summary` porte au contraire `if: always()` : il s'exécute même lorsque le gate a bloqué la
+chaîne, afin que le récapitulatif reste consultable en cas d'échec — c'est précisément dans cette
+situation qu'il est le plus utile.
+
+#### Déclencheurs
+
+```yaml
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+```
+
+`main` et `pull_request` sont exigés par le sujet ; `develop` a été ajoutée car c'est la branche
+de travail du projet, ce qui permet de valider la pipeline avant toute fusion.
+
+#### Permissions
+
+Le workflow déclare `contents: read` au niveau global — la permission la plus restrictive
+possible. Chaque job l'élève ensuite uniquement s'il en a besoin : les quatre jobs qui publient
+des rapports SARIF ajoutent `security-events: write` et `actions: read`. Le job `summary`, qui
+n'écrit que dans le récapitulatif, reste à `contents: read`.
+
+#### GitLeaks — détection de secrets
+
+Le point déterminant est la profondeur du checkout :
+
+```yaml
+- uses: actions/checkout@v6
+  with:
+    fetch-depth: 0
+```
+
+Sans cette option, GitHub ne récupère que le dernier commit et GitLeaks n'analyserait que l'état
+courant du dépôt. Or un secret introduit puis retiré dans un commit ultérieur reste présent dans
+l'historique et demeure exploitable par quiconque clone le dépôt. `fetch-depth: 0` récupère
+l'intégralité des commits et permet l'analyse exigée par le sujet.
+
+Le rapport est publié en SARIF avant que le job ne décide de son sort : l'étape GitLeaks porte
+`continue-on-error: true`, l'upload s'exécute, puis une étape dédiée réapplique l'échec si un
+secret a été trouvé. Ainsi le rapport remonte toujours dans Code Scanning, y compris lorsque la
+détection bloque la chaîne. À aucun moment la valeur d'un secret n'est écrite dans les journaux.
+
+#### Semgrep — analyse statique
+
+Une seule invocation combine les trois configurations exigées :
+
+```yaml
+semgrep scan \
+  --config .semgrep/rules.yaml \
+  --config p/owasp-top-ten \
+  --config p/nodejs \
+  --sarif --output semgrep.sarif --metrics=off \
+  backend/src/main/java frontend/src
+```
+
+Les six règles personnalisées de la Partie 4 sont ainsi complétées par deux rulesets publics :
+`p/owasp-top-ten` pour la couverture générique du Top 10, `p/nodejs` pour l'écosystème
+JavaScript et TypeScript du frontend. L'analyse porte sur le backend **et** le frontend. Une
+étape préalable exécute `semgrep scan --validate` : une règle personnalisée mal formée fait
+échouer le job avant même l'analyse.
+
+Semgrep est installé par `pip` à la version **1.175.0**, exactement celle validée localement en
+Partie 4, de sorte que la CI reproduise à l'identique les résultats obtenus sur poste.
+
+#### SCA — Snyk et Trivy filesystem
+
+Le sujet exige les deux outils ; ils cohabitent dans le job `sca`, qui configure au préalable
+Java 21 (Temurin, cache Maven) et Node 22 (cache npm sur `frontend/package-lock.json`).
+
+Snyk est invoqué deux fois, une fois par écosystème, afin de produire deux rapports SARIF
+distincts et deux catégories séparées dans Code Scanning :
+
+```yaml
+- name: Snyk — dépendances Maven du backend
+  env:
+    SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+  run: |
+    snyk test --file=backend/pom.xml --package-manager=maven \
+      --severity-threshold=low --sarif-file-output=snyk-backend.sarif
+```
+
+Le jeton n'apparaît jamais en clair : il est lu depuis les secrets du dépôt et transmis par
+variable d'environnement. Les deux étapes Snyk portent `continue-on-error: true` — elles
+rapportent sans bloquer, le blocage étant assumé par Trivy.
+
+Trivy filesystem s'exécute en deux passages, selon le motif recommandé par l'action officielle.
+Le premier produit le rapport SARIF complet, sans jamais faire échouer le job. Le second est
+**l'unique contrôle bloquant de la pipeline** :
+
+```yaml
+- name: Trivy filesystem — contrôle bloquant (CRITICAL corrigeables)
+  uses: aquasecurity/trivy-action@v0.36.0
+  with:
+    scan-type: fs
+    scan-ref: .
+    scanners: vuln
+    severity: CRITICAL
+    ignore-unfixed: true
+    exit-code: '1'
+```
+
+La politique retenue est explicite : bloquer sur une vulnérabilité `CRITICAL` **pour laquelle un
+correctif existe**. Une vulnérabilité sans correctif disponible n'est pas actionnable — la
+signaler comme bloquante arrêterait la chaîne sans qu'aucune remédiation ne soit possible.
+
+#### Build Docker
+
+Le projet possède deux Dockerfiles réels, `backend/Dockerfile` et `frontend/Dockerfile` ; aucun
+Dockerfile racine n'a été créé pour les besoins de la pipeline. Les deux images sont construites
+avec Buildx et taguées par l'empreinte du commit :
+
+```yaml
+tags: salary-tontine-backend:${{ github.sha }}
+tags: salary-tontine-frontend:${{ github.sha }}
+```
+
+`push: false` et `load: true` : **aucune image n'est publiée vers un registre**, conformément au
+sujet qui demande uniquement construction et analyse. `load: true` charge l'image dans le démon
+Docker local, ce qui est indispensable pour que Trivy puisse ensuite l'analyser.
+
+#### Trivy image
+
+Les deux images sont analysées séparément, avec la même option obligatoire :
+
+```yaml
+ignore-unfixed: true
+```
+
+Deux rapports distincts sont produits, `trivy-backend-image.sarif` et
+`trivy-frontend-image.sarif`, publiés sous deux catégories différentes.
+
+#### Rapports SARIF
+
+Sept rapports sont produits et publiés via `github/codeql-action/upload-sarif@v4`, chacun sous
+une catégorie propre afin d'éviter toute collision dans Code Scanning :
+
+| Fichier SARIF | Catégorie | Job |
+|---|---|---|
+| `results.sarif` | `gitleaks` | `gitleaks` |
+| `semgrep.sarif` | `semgrep` | `sast` |
+| `snyk-backend.sarif` | `snyk-backend` | `sca` |
+| `snyk-frontend.sarif` | `snyk-frontend` | `sca` |
+| `trivy-fs.sarif` | `trivy-fs` | `sca` |
+| `trivy-backend-image.sarif` | `trivy-backend-image` | `docker-build-and-scan` |
+| `trivy-frontend-image.sarif` | `trivy-frontend-image` | `docker-build-and-scan` |
+
+Les sept uploads portent `if: always()`, doublé d'un test d'existence du fichier. La conséquence
+est importante : **un scan qui échoue publie quand même son rapport**. Sans cette précaution, le
+cas le plus intéressant — celui où l'outil trouve quelque chose — serait aussi celui où le
+rapport serait perdu.
+
+#### GitHub Summary
+
+Le job `summary` écrit dans `$GITHUB_STEP_SUMMARY` un tableau Markdown construit à partir de
+l'état réel des jobs, lu via `needs.<job>.result` :
+
+```yaml
+env:
+  R_GITLEAKS: ${{ needs.gitleaks.result }}
+  R_SAST: ${{ needs.sast.result }}
+  R_SCA: ${{ needs.sca.result }}
+  R_BUILD: ${{ needs.docker-build-and-scan.result }}
+```
+
+Une fonction shell traduit les quatre états possibles — `success`, `failure`, `cancelled`,
+`skipped` — en libellés lisibles. Le tableau distingue six contrôles ; comme Snyk et Trivy FS
+partagent le job `sca`, et le build et le scan d'images le job `docker-build-and-scan`, une note
+explicite le rappelle sous le tableau. Aucune valeur sensible n'y figure.
+
+---
+
 ### 5.2 Réponses aux Questions Q5.1, Q5.2, Q5.3
+
+#### Q5.1 — Quel scanner est bloquant, et pourquoi ?
+
+Le contrôle bloquant est **Trivy filesystem**, dans son second passage au sein du job `sca`,
+seul endroit de la pipeline où figure `exit-code: '1'`.
+
+Le choix de l'outil se justifie par ce qu'il mesure. Semgrep analyse du code écrit par l'équipe :
+ses signalements demandent une interprétation contextuelle, comme la Partie 4 l'a montré avec la
+désactivation de CSRF. Trivy et Snyk mesurent en revanche un fait objectif et vérifiable — telle
+dépendance est à telle version, cette version porte telle CVE, et un correctif existe ou non.
+C'est sur ce type de fait qu'un blocage automatique est légitime.
+
+La politique retenue est de bloquer sur les vulnérabilités **CRITICAL pour lesquelles un correctif
+existe**, d'où la combinaison `severity: CRITICAL` et `ignore-unfixed: true`. Bloquer sur du non
+corrigeable arrêterait la chaîne sans offrir de remédiation ; bloquer dès le niveau HIGH
+arrêterait presque toute application réelle et conduirait à désactiver le gate, ce qui reviendrait
+à ne pas en avoir.
+
+**Lien avec le premier run.** Le mécanisme n'est pas resté théorique. Lors de l'exécution
+`DevSecOps #1` sur `develop`, Trivy a détecté **six vulnérabilités CRITICAL corrigeables** dans
+`backend/pom.xml`. L'étape bloquante s'est terminée sur `Error: Process completed with exit code
+1`, le job `sca` est passé en échec, et le job `docker-build-and-scan` **n'a jamais démarré** :
+GitHub l'a marqué `skipped`, durée `0s`. Aucune image n'a été construite, aucune image n'a été
+analysée. Le security gate a fonctionné exactement comme prévu.
+
+#### Q5.2 — Que se passerait-il si une clé API était codée en dur ?
+
+Le déroulement serait le suivant, étape par étape.
+
+1. **Le développeur committe et pousse** la clé sur `main`, `develop` ou dans une pull request.
+   Le workflow se déclenche : ces trois cas sont couverts par les déclencheurs.
+2. **Le job `gitleaks` récupère le dépôt avec `fetch-depth: 0`.** L'historique complet est
+   présent, pas seulement le dernier commit.
+3. **GitLeaks analyse l'arbre de travail et l'historique.** La clé est détectée même si elle a
+   été retirée par un commit ultérieur : c'est tout l'intérêt du checkout complet, puisqu'un
+   secret resté dans l'historique demeure exploitable par quiconque clone le dépôt.
+4. **Le rapport SARIF est publié** dans Code Scanning sous la catégorie `gitleaks`. L'upload
+   porte `if: always()` : il a lieu avant que le job ne décide de son sort. L'emplacement de la
+   fuite — fichier, ligne, commit — est reporté, jamais la valeur du secret.
+5. **Le job `gitleaks` échoue.** L'étape de détection porte `continue-on-error: true` pour laisser
+   le rapport remonter, puis une étape conditionnée à `steps.gitleaks.outcome == 'failure'`
+   réapplique l'échec avec un message d'erreur annoté.
+6. **Le build Docker est bloqué.** `docker-build-and-scan` déclare `needs: [gitleaks, sast, sca]` :
+   il passe en `skipped` sans exécuter la moindre étape. Aucune image ne contient donc la clé.
+7. **Le récapitulatif reste produit.** Le job `summary` porte `if: always()` : il s'exécute et
+   affiche `Secrets | GitLeaks | ❌ Échec` ainsi que `Build | Docker | 🚫 Non exécuté (gate amont
+   en échec)`, puis fait échouer le pipeline global.
+
+**Ce scénario n'a pas eu lieu.** Le premier run réel affiche `No leaks detected` et le job
+`gitleaks` s'est terminé en succès en 16 secondes. La description ci-dessus est le comportement
+attendu du mécanisme, pas un résultat observé.
+
+Il faut noter que la remédiation ne s'arrêterait pas à la suppression de la ligne fautive : un
+secret entré dans l'historique Git doit être **révoqué et remplacé**, car il subsiste dans toutes
+les copies du dépôt déjà clonées. C'est exactement la raison pour laquelle SalaryTontine
+externalise l'intégralité de ses secrets par variables d'environnement, comme documenté en
+Partie 3.
+
+#### Q5.3 — Quelle différence entre une CVE et une CWE ?
+
+Une **CVE** — *Common Vulnerabilities and Exposures* — identifie **une vulnérabilité concrète
+affectant un produit et une version donnés**. C'est un fait vérifiable : tel composant, à telle
+version, présente tel défaut, corrigé à telle autre version. L'identifiant est unique et
+mondialement partagé.
+
+Une **CWE** — *Common Weakness Enumeration* — désigne **une catégorie générique de faiblesse
+logicielle**, indépendante de tout produit. C'est un type d'erreur de conception ou
+d'implémentation, qui peut se reproduire dans n'importe quel logiciel.
+
+Le rapport entre les deux est celui de l'instance à la classe : une CVE est l'occurrence
+particulière d'une CWE dans un produit précis.
+
+| | CVE | CWE |
+|---|---|---|
+| Nature | Vulnérabilité concrète | Catégorie de faiblesse |
+| Portée | Un produit, une version | Tout logiciel |
+| Exemple dans ce projet | `CVE-2025-41232` — Spring Security 6.4.2, contournement d'autorisation sur les annotations de sécurité appliquées à des méthodes privées, corrigé en 6.4.6 | `CWE-352` — Cross-Site Request Forgery, catégorie du constat C8 sur la désactivation de CSRF |
+| Autre exemple | `CVE-2025-24813` — Tomcat 10.1.34, RCE potentielle via PUT partiel, corrigé en 10.1.35 | `CWE-614` — cookie sensible sans attribut `Secure`, catégorie du constat C3 |
+| Qui les produit | Éditeurs, chercheurs, MITRE | MITRE |
+| Qui les détecte ici | Snyk et Trivy, par comparaison à une base de vulnérabilités | Semgrep et l'analyse manuelle, par reconnaissance de motifs |
+
+Cette distinction structure d'ailleurs la pipeline. Les constats de la Partie 3 et les règles de
+la Partie 4 sont exprimés en CWE : la désactivation de CSRF n'est pas une CVE, c'est une décision
+de configuration relevant de CWE-352. Les résultats de la Partie 6 sont au contraire exprimés en
+CVE : ils désignent des versions précises de dépendances tierces, et se corrigent par une montée
+de version. Deux natures de problème, deux familles d'outils, deux modes de remédiation.
 
 ---
 
 ## 6. Résultats
 
-### 6.1 Tableau Complet des Alertes
+### 6.1 Résultats du premier run
+
+Le premier passage de la pipeline a eu lieu sur la branche `develop`, au commit
+`ci: add DevSecOps security pipeline` (`2d65796`). Exécution `DevSecOps #1`, durée totale
+**1 min 42 s**, deux artefacts produits.
+
+**Résultat global : FAILURE.** Cet échec est le comportement attendu et non un
+dysfonctionnement : le security gate a bloqué la chaîne sur des vulnérabilités CRITICAL
+réellement présentes dans les dépendances du backend.
+
+| Contrôle | Outil | Résultat | Observation |
+|---|---|---|---|
+| Secrets | GitLeaks | **SUCCESS** (16 s) | `No leaks detected` — aucun secret dans le dépôt ni dans son historique |
+| SAST | Semgrep | **SUCCESS** (35 s) | Analyse terminée, rapport SARIF de 108 Ko publié |
+| SCA | Snyk + Trivy FS | **FAILURE** (1 min 32 s) | 6 vulnérabilités CRITICAL corrigeables dans `backend/pom.xml` ; le contrôle bloquant se termine sur `exit code 1` |
+| Build | Docker | **SKIPPED** (0 s) | Gate `sca` non validé : `needs` empêche le démarrage du job |
+| Container Scan | Trivy Image | **SKIPPED** | Exécuté dans le même job que le build, donc non atteint |
+| Récapitulatif | — | **FAILURE** (3 s) | Reflète l'échec global par propagation ; le tableau reste produit grâce à `if: always()` |
+
+![Exécution DevSecOps #1 sur develop : statut Failure, graphe des jobs, et résumé GitLeaks « No leaks detected »](docs/screenshots/run1-summary-jobs.png)
+
+*Vue d'ensemble de l'exécution. Le graphe montre les trois contrôles parallèles, l'échec de
+`SCA : Snyk + Trivy FS`, et l'icône de saut sur `Build & scan des images`. En bas, le résumé de
+job de GitLeaks : « No leaks detected ».*
+
+![Tableau récapitulatif écrit dans GitHub Step Summary](docs/screenshots/run1-step-summary.png)
+
+*Le récapitulatif produit par le job `summary`. Les six lignes reprennent l'état réel de chaque
+job via `needs.<job>.result`. Les deux dernières portent « Non exécuté (gate amont en échec) »,
+formulation qui distingue explicitement un saut d'un échec. Les sept catégories SARIF et le
+fonctionnement du security gate y sont rappelés.*
+
+![Résumé Trivy filesystem : backend/pom.xml 6 vulnérabilités, frontend/package-lock.json 0](docs/screenshots/run1-trivy-fs-summary.png)
+
+*Sortie du contrôle bloquant Trivy. Le tableau de synthèse distingue nettement les deux
+écosystèmes : **6 vulnérabilités pour `backend/pom.xml`**, **0 pour `frontend/package-lock.json`**.
+Le frontend est donc indemne au niveau des dépendances.*
+
+![Tableau Trivy des CVE CRITICAL : CVE-2025-24813, CVE-2026-41293, CVE-2026-43512](docs/screenshots/run1-trivy-cve-tomcat.png)
+
+*Détail des vulnérabilités Tomcat. La colonne `Installed Version` indique `10.1.34` et la colonne
+`Fixed Version` donne les versions correctives lorsqu'elles sont publiées.*
+
+![Suite du tableau Trivy et échec du contrôle bloquant sur exit code 1](docs/screenshots/run1-trivy-cve-spring-exit1.png)
+
+*Fin du tableau, avec les deux CVE Spring Security, puis la ligne décisive :
+`Error: Process completed with exit code 1`. C'est cette sortie en erreur qui fait échouer le job
+`sca` et bloque le build Docker.*
+
+![Journal Snyk : vulnérabilités Critical et High dans spring-security-core et spring-security-crypto](docs/screenshots/run1-snyk-spring-security.png)
+
+*Extrait du journal Snyk sur les dépendances Maven. Snyk raisonne sur le graphe de dépendances et
+affiche pour chaque vulnérabilité la chaîne d'introduction — ici `spring-security-test@6.4.2 >
+spring-security-core@6.4.2 > spring-security-crypto@6.4.2`.*
+
+#### Résultats Snyk — synthèse
+
+Snyk a analysé les deux écosystèmes. Sur le backend Maven, il remonte un volume de findings
+sensiblement plus élevé que Trivy, car il inclut les dépendances transitives et les dépendances
+de test, et propose pour chacune une montée de version. Les composants concernés et les types de
+vulnérabilités réellement observés sont les suivants.
+
+| Composant | Version | Vulnérabilités observées (extraits) |
+|---|---|---|
+| `spring-security-core` | 6.4.2 | Missing Authentication for Critical Function (**Critical**), Timing Attack (High), Incorrect Authorization (Medium), Information Exposure (Medium), TOCTOU Race Condition (Medium) |
+| `spring-security-crypto` | 6.4.2 | Authentication Bypass by Primary Weakness (**Critical**), Generation of Predictable IV with CBC Mode (High) |
+| `jackson-databind` | 2.18.2 | Deserialization of Untrusted Data (**Critical**), Incomplete List of Disallowed Inputs (**Critical**), SSRF |
+| `tomcat-embed-core` | 10.1.34 | Improper Certificate Validation (**Critical**), Missing Critical Step in Authentication (**Critical**) |
+| `spring-boot-actuator` / `-autoconfigure` | 3.4.2 | Authentication Bypass Using an Alternate Path or Channel (**Critical**), Improper Validation of Certificate with Host Mismatch (**Critical**) |
+| `micrometer-core` | 1.14.3 | CRLF Injection (High), Allocation of Resources Without Limits (High), Missing Release of Memory (High) |
+| `commons-lang3` | 3.17.0 | Uncontrolled Recursion (High) |
+
+Le journal complet n'est pas reproduit ici : il compte plusieurs centaines de lignes. Les deux
+outils sont complémentaires — Trivy applique un filtre sévérité et corrigibilité qui en fait un
+bon gate, Snyk fournit la chaîne d'introduction de chaque vulnérabilité, ce qui oriente la
+remédiation vers la bonne dépendance racine.
+
+#### Artefacts et annotations
+
+Deux artefacts ont été produits : `gitleaks-results.sarif` (6,63 Ko) et `semgrep-sarif` (108 Ko).
+Quatre annotations d'erreur figurent sur l'exécution, dont celle du contrôle bloquant Trivy et
+celle du job `summary` reflétant l'état global.
+
+#### GitHub Security — Code scanning
+
+![Alertes Code scanning sur la branche develop : 207 ouvertes, 0 fermées](docs/screenshots/run1-code-scanning-develop.png)
+
+*Onglet Security → Code scanning, filtré sur `is:open branch:develop`. **207 alertes ouvertes,
+0 fermée.** Les plus critiques sont détectées par Trivy dans `backend/pom.xml`, avec les intitulés
+correspondant aux CVE analysées ci-dessous. Le bandeau « Configured tools are not scanning the
+default branch » confirme que ce premier run a eu lieu sur `develop` et non sur `main`.*
+
+Une observation complémentaire mérite d'être notée : la liste contient également un finding de
+mauvaise configuration, `Image user should not be 'root'` (High), issu du scanner `misconfig` de
+Trivy filesystem. Le Dockerfile du backend déclare pourtant bien un utilisateur non privilégié,
+ce qui oriente vers le Dockerfile du frontend — **à confirmer en Partie 7**, la capture ne
+permettant pas de lire le fichier concerné.
+
+> **Capture finale GitHub Security → Code scanning à ajouter après exécution de la pipeline sur
+> `main`**, une fois les corrections de la Partie 7 appliquées et au moins quatre alertes passées
+> au statut *Fixed*. La capture ci-dessus, prise sur `develop`, constitue la preuve intermédiaire
+> de l'état **avant** correction.
+
+---
 
 ### 6.2 Analyse des CVE
 
+Les six vulnérabilités retenues sont celles qui ont déclenché le contrôle bloquant : niveau
+CRITICAL, corrigeable, détectées par Trivy dans `backend/pom.xml`.
+
+| # | CVE | Package affecté | Version vulnérable | Score CVSS | Vecteur d'attaque | Version corrigée |
+|---|---|---|---|---|---|---|
+| 1 | `CVE-2025-24813` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 10.1.35, 11.0.3, 9.0.99 |
+| 2 | `CVE-2026-41293` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 10.1.55, 11.0.22, 9.0.118 |
+| 3 | `CVE-2026-43512` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | Non affichée dans la sortie observée ; à compléter depuis la fiche officielle. |
+| 4 | `CVE-2026-43515` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | Non affichée dans la sortie observée ; à compléter depuis la fiche officielle. |
+| 5 | `CVE-2025-41232` | `org.springframework.security:spring-security-core` | 6.4.2 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 6.4.6 |
+| 6 | `CVE-2026-22732` | `org.springframework.security:spring-security-web` | 6.4.2 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 6.5.9, 7.0.4 |
+
+Les scores CVSS et les vecteurs d'attaque ne figurent pas dans la sortie Trivy telle qu'observée.
+Ils ne sont volontairement pas renseignés : les inventer priverait ce tableau de toute valeur.
+Ils seront complétés depuis les fiches officielles, accessibles via les liens
+`https://avd.aquasec.com/nvd/<cve>` fournis par Trivy dans son rapport.
+
+#### Intitulés relevés par Trivy
+
+| CVE | Intitulé |
+|---|---|
+| `CVE-2025-24813` | *tomcat: Potential RCE and/or information disclosure and/or information corruption with partial PUT* |
+| `CVE-2026-41293` | *tomcat-coyote: Apache Tomcat: HTTP/2 request headers not validated* |
+| `CVE-2026-43512` | *tomcat-coyote: Apache Tomcat: Authentication bypass via digest authentication* |
+| `CVE-2026-43515` | *tomcat-coyote: tomcat: Improper Authorization allows security bypass* |
+| `CVE-2025-41232` | *Spring-Security: Spring Security authorization bypass for method security annotations on private methods* |
+| `CVE-2026-22732` | *Spring Security: Security policy bypass and information disclosure due to unwritten HTTP headers* |
+
+#### Impact concret pour SalaryTontine
+
+**Les quatre CVE Tomcat.** SalaryTontine expose son API HTTP via le Tomcat embarqué de Spring
+Boot : ce composant est donc en première ligne, il traite chaque requête entrante avant même que
+Spring Security n'intervienne. Les vulnérabilités touchant le traitement HTTP sont par
+conséquent potentiellement pertinentes pour l'application — potentiellement, car chacune suppose
+des préconditions particulières. `CVE-2025-24813` concerne le traitement des requêtes `PUT`
+partielles ; `CVE-2026-41293` la validation des en-têtes HTTP/2 ; `CVE-2026-43512`
+l'authentification *digest* ; `CVE-2026-43515` un contournement d'autorisation. Déterminer si ces
+préconditions sont réunies dans la configuration exacte de SalaryTontine — méthodes HTTP
+autorisées, activation ou non de HTTP/2, mécanisme d'authentification employé — demande une
+lecture de chaque fiche officielle. **Ce travail n'a pas encore été fait et l'exploitabilité
+n'est donc pas affirmée ici.** La remédiation, en revanche, est simple et connue : monter la
+version de Tomcat, ce qui se fait en pratique en montant la version de Spring Boot.
+
+**Les deux CVE Spring Security.** Elles méritent une attention particulière, car Spring Security
+porte l'intégralité du contrôle d'accès de SalaryTontine : l'authentification par cookie JWT, les
+annotations `@PreAuthorize` sur les routes de gestion, et la règle globale
+`requestMatchers("/api/admin/**").hasRole("ADMIN")`. Une vulnérabilité de contournement
+d'autorisation dans cette couche touche donc directement le mécanisme qui protège les salaires et
+les opérations d'administration. `CVE-2025-41232` concerne spécifiquement les annotations de
+sécurité appliquées à des méthodes privées — il faudra vérifier si le code du projet présente ce
+motif. `CVE-2026-22732` porte sur des en-têtes HTTP non écrits, causant un contournement de
+politique et une divulgation d'information. **Là encore, la présence de la dépendance vulnérable
+est un fait établi ; l'exploitabilité dans notre configuration précise reste à vérifier
+précondition par précondition.**
+
+**Jackson.** `jackson-databind` 2.18.2, remonté par Snyk avec plusieurs vulnérabilités Critical
+dont une désérialisation de données non fiables et une SSRF, est présent dans le projet **en
+dépendance transitive**, introduite par `jjwt-jackson` pour la sérialisation des jetons JWT.
+
+C'est ici que la distinction la plus importante de cette section doit être posée. Une
+**dépendance vulnérable présente** n'équivaut pas à une **vulnérabilité exploitable dans notre
+application**. Les vulnérabilités de désérialisation de Jackson supposent typiquement l'activation
+du typage polymorphe — `enableDefaultTyping` ou l'annotation `@JsonTypeInfo`. Or l'analyse
+manuelle de la Partie 3 a explicitement recherché ces constructions dans l'ensemble du backend :
+`grep -rn "ObjectInputStream\|@JsonTypeInfo\|enableDefaultTyping"` sur `backend/src/main` n'a
+retourné **aucune occurrence**. La configuration Jackson du projet se limite à un sérialiseur et
+un désérialiseur explicites pour le type `YearMonth`. Le vecteur d'exploitation le plus courant
+n'est donc pas ouvert dans SalaryTontine.
+
+Cela ne signifie pas qu'il faille ignorer la dépendance : elle doit être mise à jour, et le
+raisonnement ci-dessus repose sur l'état actuel du code, qu'une évolution future pourrait
+invalider. Mais cela signifie que la **priorité** de cette remédiation n'est pas la même que
+celle des CVE Spring Security, qui touchent une couche que l'application utilise activement. C'est
+précisément le type d'arbitrage qu'un scanner ne peut pas faire seul, et qui justifie la
+comparaison de la section suivante.
+
+---
+
 ### 6.3 Comparaison Manuelle vs Automatisée
+
+| Constat | Manuel | Semgrep | Snyk / Trivy | Analyse |
+|---|:---:|:---:|:---:|---|
+| C3 — Cookie sans attribut `Secure` | Oui | **Oui** | Non | Convergence complète. Semgrep confirme le constat manuel par la règle R4, sur `AppProperties.java:115` |
+| C8 — Protection CSRF désactivée | Oui | **Oui** | Non | Convergence sur le fait, divergence sur la conclusion — voir ci-dessous |
+| CVE Tomcat (4 CRITICAL) | Non | Non | **Oui** | Hors de portée d'une lecture de code : exige une base de vulnérabilités |
+| CVE Spring Security (2 CRITICAL) | Non | Non | **Oui** | Idem |
+| Vulnérabilités `jackson-databind` | Non | Non | **Oui** | Dépendance transitive, invisible dans le code du projet |
+| Vulnérabilités transitives diverses | Non | Non | **Oui** | Snyk fournit la chaîne d'introduction complète |
+| C1 — Rôle figé dans le JWT | **Oui** | Non | Non | Exige de comprendre le cycle de vie du jeton et le modèle de rôles |
+| C5 — Absence de rate limiting | **Oui** | Non | Non | Exige de raisonner sur une absence, non sur un motif présent |
+| C4 — E-mails exposés sur tontines `DRAFT` | **Oui** | Non | Non | Exige de comprendre la sémantique métier du statut `DRAFT` |
+| C6 — Échecs d'authentification non journalisés | **Oui** | Non | Non | Exige de savoir ce qui *devrait* être tracé |
+| C2 — Pas de révocation serveur du JWT | **Oui** | Non | Non | Exige de comprendre l'architecture d'authentification |
+
+#### Trouvé par les deux approches
+
+Deux constats seulement sont communs à l'analyse manuelle et à l'analyse automatisée, et ce sont
+les deux findings des règles Semgrep personnalisées : la valeur par défaut `cookieSecure = false`
+et la désactivation globale de CSRF. Les deux correspondent à un **motif syntaxique reconnaissable**
+dans un fichier de configuration — exactement le terrain où un analyseur statique est performant.
+
+Le cas de CSRF mérite d'être détaillé, car il illustre la limite de l'automatisation. Semgrep
+détecte correctement le fait : `.csrf(AbstractHttpConfigurer::disable)` désactive bien la
+protection, globalement. Mais l'analyse manuelle de la Partie 3 est allée plus loin en
+établissant deux éléments que l'outil ne peut pas connaître. D'une part, le cookie
+d'authentification porte `SameSite=Lax`, ce qui empêche le navigateur de l'émettre sur une requête
+`POST`, `PATCH` ou `DELETE` inter-site. D'autre part — et c'est le point décisif — la vérification
+des quarante-deux endpoints de l'API a montré qu'**aucune route `GET` ne modifie l'état**. Or
+`Lax` n'émet le cookie que sur une navigation de premier niveau en `GET`. Il n'existe donc pas de
+vecteur exploitable sur un navigateur à jour.
+
+La conclusion n'est pas que Semgrep se trompe, mais que son signalement est **incomplet sans
+interprétation humaine**. Le fait constaté est exact ; la qualification du risque exige une
+connaissance de l'ensemble des routes que seul un examen manuel pouvait produire. C'est la raison
+pour laquelle le message de la règle R5 intègre explicitement cette réserve.
+
+#### Trouvé automatiquement, mais pas manuellement
+
+Toutes les CVE relèvent de cette catégorie, sans exception. L'analyse manuelle de la Partie 3 n'en
+a identifié aucune, et cela n'est pas une lacune de méthode : c'est une impossibilité structurelle.
+
+Reconnaître que `tomcat-embed-core` 10.1.34 porte `CVE-2025-24813` suppose deux choses qu'aucune
+lecture de code ne peut fournir. La première est une **base de vulnérabilités tenue à jour**,
+recensant pour chaque composant et chaque version les défauts publiés — les CVE de 2026
+concernées n'existaient d'ailleurs pas au moment où le code a été écrit. La seconde est la
+capacité à **résoudre le graphe de dépendances complet**, y compris transitives : `pom.xml` ne
+mentionne ni Tomcat, ni Jackson, ni Micrometer. Ces composants arrivent par
+`spring-boot-starter-web`, `jjwt-jackson` et `spring-boot-starter-actuator`. Snyk affiche
+d'ailleurs la chaîne d'introduction complète de chaque vulnérabilité, ce qui permet d'identifier
+la dépendance racine sur laquelle agir.
+
+Cette catégorie est donc le domaine propre du SCA, et elle justifie à elle seule sa présence dans
+la pipeline : sans Snyk ni Trivy, ces six vulnérabilités CRITICAL seraient restées invisibles.
+
+#### Trouvé manuellement, mais par aucun scanner
+
+C'est la catégorie la plus instructive, et elle contient les constats les plus graves du rapport —
+notamment **C1**, classé en tête de la Partie 3.
+
+Aucun des scanners n'a signalé que le rôle est lu depuis le JWT sans jamais être relu en base, ce
+qui rend une rétrogradation inopérante pendant une heure. Aucun n'a relevé l'absence de limitation
+de débit sur `/api/auth/login`. Aucun n'a vu que l'exception de lecture accordée aux tontines
+`DRAFT` expose les adresses e-mail des participants. Aucun n'a signalé que les échecs
+d'authentification ne sont pas journalisés, ni l'absence de révocation serveur des jetons.
+
+Ces angles morts ne sont pas fortuits ; ils partagent trois caractéristiques.
+
+D'abord, **plusieurs de ces constats sont des absences**. Un analyseur statique reconnaît des
+motifs présents dans le code : il ne peut pas signaler qu'un rate limiter, une trace d'audit ou un
+mécanisme de révocation *manque*, car il faudrait pour cela savoir qu'ils devraient exister.
+
+Ensuite, ils **exigent la compréhension de la logique métier**. Que le statut `DRAFT` d'une tontine
+ouvre volontairement la lecture aux non-participants est une décision de conception légitime ;
+qu'elle expose au passage les adresses e-mail à travers un DTO partagé est un effet de bord que
+seule la lecture conjointe du service, du mapper et du DTO permet de saisir.
+
+Enfin, ils **portent sur des interactions entre composants**, non sur une ligne isolée. C1 ne
+devient un problème qu'en rapprochant trois éléments : le rôle inscrit dans le jeton à
+l'émission, le filtre qui ne relit que le statut, et l'existence d'un endpoint de modification de
+rôle. Chacun de ces éléments, pris séparément, est parfaitement anodin.
+
+#### Conclusion de la comparaison
+
+Les deux approches ne se recouvrent que sur deux constats, et se complètent sur tout le reste. Le
+SCA a apporté six vulnérabilités CRITICAL qu'aucune relecture n'aurait pu produire ; l'analyse
+manuelle a apporté cinq constats structurels qu'aucun scanner n'a vus, dont le plus grave du
+rapport. Le SAST, lui, a confirmé deux constats déjà établis — et son second signalement a exigé
+une interprétation humaine pour être correctement qualifié.
+
+C'est précisément ce résultat qui justifie l'ordre de travail suivi dans cet examen : l'analyse
+manuelle a été conduite **avant** toute exécution d'outil, sur un code non corrigé. Menée après
+lecture des rapports, elle se serait très probablement limitée à confirmer ce que les outils
+avaient déjà trouvé, et les cinq constats de la troisième catégorie n'auraient sans doute jamais
+émergé.
 
 ---
 
