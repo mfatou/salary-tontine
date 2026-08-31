@@ -1,10 +1,11 @@
 # RAPPORT FINAL : Examen DevSecOps
+
 # SalaryTontine
 
 **Étudiante :** Mame Fatou Laye Diop
 **Matricule :** 1058948
 **Date :** 30/08/2026
-**Repo GitHub :** https://github.com/mfatou/salary-tontine
+**Repo GitHub :** [https://github.com/mfatou/salary-tontine](https://github.com/mfatou/salary-tontine)
 **Stack technique :** Java 21 / Spring Boot 3.4.2 · React 19.2 / TypeScript 5.9 / Vite 6.4 · PostgreSQL 16 · Flyway · Docker
 
 ---
@@ -36,18 +37,20 @@ seule.
 
 Les éléments suivants ont été vérifiés dans le code :
 
-| Élément | Implémentation constatée |
-|---|---|
-| Statuts d'une tontine | `DRAFT`, `ACTIVE`, `COMPLETED`, `CANCELLED` (`TontineStatus`) |
-| Adhésion | Un employé dépose une demande sur une tontine `DRAFT` ; le comptable accepte ou refuse (`JoinRequestService`). Une demande vit dans sa propre table `tontine_join_requests` et n'entre dans aucun calcul tant qu'elle n'est pas acceptée |
-| Ordre de passage | `TontineMember.turnOrder`, entier unique par tontine, attribué à l'acceptation ; renuméroté de 1 à n après un départ (`TontineService.compactTurnOrders`) |
-| Tours | Numérotés de 1 à n ; le tour k revient au participant dont le `turnOrder` vaut k (`TontineCycleService.resolveBeneficiary`) |
-| Cadence | `TontineFrequency` : `WEEKLY` (7 j), `TEN_DAYS` (10 j), `BIWEEKLY` (14 j), `MONTHLY` (mois calendaire), `CUSTOM` (durée libre de 1 à 365 jours portée par `Tontine.periodDays`) |
-| Cotisations | Une par participant et par tour, du montant de la tontine, statut `PENDING` puis `DEDUCTED` (`ContributionService`, `ContributionStatus`) |
-| Bénéficiaire | Déterminé par le rang du tour, pas par une date |
+
+| Élément                 | Implémentation constatée                                                                                                                                                                                                                        |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Statuts d'une tontine   | `DRAFT`, `ACTIVE`, `COMPLETED`, `CANCELLED` (`TontineStatus`)                                                                                                                                                                                   |
+| Adhésion                | Un employé dépose une demande sur une tontine `DRAFT` ; le comptable accepte ou refuse (`JoinRequestService`). Une demande vit dans sa propre table `tontine_join_requests` et n'entre dans aucun calcul tant qu'elle n'est pas acceptée        |
+| Ordre de passage        | `TontineMember.turnOrder`, entier unique par tontine, attribué à l'acceptation ; renuméroté de 1 à n après un départ (`TontineService.compactTurnOrders`)                                                                                       |
+| Tours                   | Numérotés de 1 à n ; le tour k revient au participant dont le `turnOrder` vaut k (`TontineCycleService.resolveBeneficiary`)                                                                                                                     |
+| Cadence                 | `TontineFrequency` : `WEEKLY` (7 j), `TEN_DAYS` (10 j), `BIWEEKLY` (14 j), `MONTHLY` (mois calendaire), `CUSTOM` (durée libre de 1 à 365 jours portée par `Tontine.periodDays`)                                                                 |
+| Cotisations             | Une par participant et par tour, du montant de la tontine, statut `PENDING` puis `DEDUCTED` (`ContributionService`, `ContributionStatus`)                                                                                                       |
+| Bénéficiaire            | Déterminé par le rang du tour, pas par une date                                                                                                                                                                                                 |
 | Génération des salaires | `SalaryService.generateForPeriod` : exige que les cotisations du tour existent pour tous les participants, calcule un `SalaryRecord` par participant, marque les cotisations `DEDUCTED`, et clôt la tontine (`COMPLETED`) après le dernier tour |
-| Participation multiple | Implémentée : un employé peut appartenir à plusieurs tontines, dans la limite de sa capacité de cotisation (`ContributionCapacityService`) |
-| Consolidation mensuelle | `SalaryService.recomputeMonthlyTotals` réaligne le salaire final de toutes les lignes du même mois |
+| Participation multiple  | Implémentée : un employé peut appartenir à plusieurs tontines, dans la limite de sa capacité de cotisation (`ContributionCapacityService`)                                                                                                      |
+| Consolidation mensuelle | `SalaryService.recomputeMonthlyTotals` réaligne le salaire final de toutes les lignes du même mois                                                                                                                                              |
+
 
 **Formule de calcul.** Le calcul unitaire est isolé dans `SalaryCalculator`, sans accès à la
 base ni au contexte HTTP :
@@ -78,14 +81,16 @@ plafond.
 
 Toutes confirmées par lecture des contrôleurs et des services correspondants.
 
-| Domaine | Fonctionnalités |
-|---|---|
-| Comptes | Inscription publique (rôle `EMPLOYEE` et salaire nul imposés par le serveur, statut `PENDING`) ; validation ou refus d'une inscription par un `ADMIN` ; attribution du rôle ; correction du salaire de base |
-| Authentification | Connexion — refusée si le compte n'est pas `ACTIVE` —, déconnexion, consultation de son profil, changement de son propre mot de passe avec vérification de l'actuel |
-| Tontines | Création, modification (`DRAFT` seulement), activation, annulation, suppression (`DRAFT` seulement) ; ajout et retrait d'un participant ; départ volontaire avant démarrage ; calendrier prévisionnel du cycle |
-| Adhésions | Demande, retrait de sa propre demande, consultation de ses demandes ; acceptation — qui crée le participant et fixe l'ordre de passage — ou refus ; file d'attente globale pour le gestionnaire |
-| Cotisations et salaires | Génération des cotisations d'un tour, puis des salaires simulés ; consultation de son historique et du bulletin consolidé d'un mois ; consultation de l'historique d'un employé par un gestionnaire |
-| Transverses | Tableau de bord agrégé ; annuaire salarial réservé aux rôles `ACCOUNTANT` et `ADMIN` ; journal d'audit paginé réservé à `ADMIN` — seul endpoint paginé de l'application ; traitement automatique planifié des tours échus |
+
+| Domaine                 | Fonctionnalités                                                                                                                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Comptes                 | Inscription publique (rôle `EMPLOYEE` et salaire nul imposés par le serveur, statut `PENDING`) ; validation ou refus d'une inscription par un `ADMIN` ; attribution du rôle ; correction du salaire de base               |
+| Authentification        | Connexion — refusée si le compte n'est pas `ACTIVE` —, déconnexion, consultation de son profil, changement de son propre mot de passe avec vérification de l'actuel                                                       |
+| Tontines                | Création, modification (`DRAFT` seulement), activation, annulation, suppression (`DRAFT` seulement) ; ajout et retrait d'un participant ; départ volontaire avant démarrage ; calendrier prévisionnel du cycle            |
+| Adhésions               | Demande, retrait de sa propre demande, consultation de ses demandes ; acceptation — qui crée le participant et fixe l'ordre de passage — ou refus ; file d'attente globale pour le gestionnaire                           |
+| Cotisations et salaires | Génération des cotisations d'un tour, puis des salaires simulés ; consultation de son historique et du bulletin consolidé d'un mois ; consultation de l'historique d'un employé par un gestionnaire                       |
+| Transverses             | Tableau de bord agrégé ; annuaire salarial réservé aux rôles `ACCOUNTANT` et `ADMIN` ; journal d'audit paginé réservé à `ADMIN` — seul endpoint paginé de l'application ; traitement automatique planifié des tours échus |
+
 
 **Aucun administrateur ne crée de compte ni ne choisit le mot de passe d'un tiers.** Chaque
 utilisateur s'inscrit lui-même et définit son propre mot de passe ; l'administrateur n'intervient
@@ -94,21 +99,23 @@ de définir le mot de passe d'un autre compte.
 
 #### Stack technique
 
-| Couche | Technologies | Rôle |
-|---|---|---|
-| Frontend | React 19.2.8, TypeScript 5.9.3, Vite 6.4.3, React Router 7.18.2, Axios 1.19.0 | Application monopage exécutée dans le navigateur |
-| Serveur frontend | Nginx 1.27-alpine (image Docker uniquement) | Sert les fichiers statiques produits par Vite ; renvoie `index.html` sur toute route inconnue |
-| Backend | Java 21, Spring Boot 3.4.2, Spring Web | API REST |
-| Authentification | Spring Security, JJWT (`jjwt-api`, `jjwt-impl`, `jjwt-jackson`) | Jeton JWT transporté par cookie |
-| Persistance | Spring Data JPA / Hibernate 6, pilote PostgreSQL | Accès aux données |
-| Validation | Jakarta Bean Validation (`spring-boot-starter-validation`) | Validation des DTO d'entrée |
-| Migrations | Flyway (`flyway-core`, `flyway-database-postgresql`) | Sept migrations versionnées, V1 à V7 |
-| Base de données | PostgreSQL 16-alpine | Stockage |
-| Documentation API | springdoc-openapi (Swagger UI) | Description des endpoints |
-| Supervision | Spring Boot Actuator | Point de santé `/actuator/health` |
-| Tests backend | JUnit 5, Mockito, AssertJ, Spring Security Test, MockMvc, Testcontainers | 180 méthodes `@Test` |
-| Tests frontend | Vitest 3.2.7, Testing Library (react 16.3.2), jsdom 26.1.0 | 66 cas de test |
-| Conteneurisation | Docker (builds multi-étapes), Docker Compose | Trois services : `postgres`, `backend`, `frontend` |
+
+| Couche            | Technologies                                                                  | Rôle                                                                                          |
+| ----------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Frontend          | React 19.2.8, TypeScript 5.9.3, Vite 6.4.3, React Router 7.18.2, Axios 1.19.0 | Application monopage exécutée dans le navigateur                                              |
+| Serveur frontend  | Nginx 1.27-alpine (image Docker uniquement)                                   | Sert les fichiers statiques produits par Vite ; renvoie `index.html` sur toute route inconnue |
+| Backend           | Java 21, Spring Boot 3.4.2, Spring Web                                        | API REST                                                                                      |
+| Authentification  | Spring Security, JJWT (`jjwt-api`, `jjwt-impl`, `jjwt-jackson`)               | Jeton JWT transporté par cookie                                                               |
+| Persistance       | Spring Data JPA / Hibernate 6, pilote PostgreSQL                              | Accès aux données                                                                             |
+| Validation        | Jakarta Bean Validation (`spring-boot-starter-validation`)                    | Validation des DTO d'entrée                                                                   |
+| Migrations        | Flyway (`flyway-core`, `flyway-database-postgresql`)                          | Sept migrations versionnées, V1 à V7                                                          |
+| Base de données   | PostgreSQL 16-alpine                                                          | Stockage                                                                                      |
+| Documentation API | springdoc-openapi (Swagger UI)                                                | Description des endpoints                                                                     |
+| Supervision       | Spring Boot Actuator                                                          | Point de santé `/actuator/health`                                                             |
+| Tests backend     | JUnit 5, Mockito, AssertJ, Spring Security Test, MockMvc, Testcontainers      | 180 méthodes `@Test`                                                                          |
+| Tests frontend    | Vitest 3.2.7, Testing Library (react 16.3.2), jsdom 26.1.0                    | 66 cas de test                                                                                |
+| Conteneurisation  | Docker (builds multi-étapes), Docker Compose                                  | Trois services : `postgres`, `backend`, `frontend`                                            |
+
 
 Les versions du backend proviennent de `backend/pom.xml`, les images Docker de
 `docker-compose.yml` et des `Dockerfile`. Les versions frontend sont celles **réellement
@@ -118,27 +125,29 @@ déclarée, notamment TypeScript (5.9.3 pour `^5.7.3`) et Axios (1.19.0 pour `^1
 
 #### Données sensibles
 
-| Donnée / Secret | Catégorie | Pourquoi sensible | Enjeu CIA principal |
-|---|---|---|---|
-| Nom, adresse e-mail | Donnée métier | Identifient une personne physique | Confidentialité |
-| Salaire de base (`base_salary`) | Donnée métier | Rémunération individuelle ; base de tous les calculs | Confidentialité + Intégrité |
-| Historique des salaires simulés (`salary_records`) | Donnée métier | Reconstitue la rémunération dans le temps | Confidentialité + Intégrité |
-| Cotisations (`contributions`) | Donnée métier | Engagements d'un participant | Intégrité |
-| Appartenance à une tontine (`tontine_members`) | Donnée métier | Révèle l'adhésion à un groupe d'épargne | Confidentialité |
-| Ordre de passage (`turn_order`) | Donnée métier | Détermine qui encaisse la cagnotte et quand | Intégrité |
-| Demandes d'adhésion (`tontine_join_requests`) | Donnée métier | Contiennent un message libre du demandeur | Confidentialité |
-| Journal d'audit (`audit_logs`) | Donnée métier | Sa valeur probante repose sur son exactitude | Intégrité |
-| Empreinte du mot de passe (`password_hash`, BCrypt) | Donnée d'authentification | Sa divulgation exposerait à une attaque hors ligne | Confidentialité |
-| **Jeton JWT** | Donnée d'authentification (*credential*) | Porte l'identité et le rôle de l'appelant ; quiconque le détient agit au nom de son porteur | Confidentialité + Intégrité |
-| Statut du compte (`PENDING`, `ACTIVE`, `REJECTED`) | Donnée d'authentification | Conditionne l'accès à l'application | Intégrité |
-| Rôle (`EMPLOYEE`, `ACCOUNTANT`, `ADMIN`) | Donnée d'authentification | Détermine les autorisations | Intégrité |
-| **`JWT_SECRET`** | Secret cryptographique | Clé de signature des jetons : la connaître permet d'en forger | Confidentialité + Intégrité |
-| `DB_PASSWORD` | Secret technique | Ouvre un accès direct à la base, hors de tout contrôle applicatif | Confidentialité + Intégrité |
-| `APP_ADMIN_PASSWORD` | Secret technique | Mot de passe du compte administrateur initial | Confidentialité |
-| `APP_SEED_PASSWORD` | Secret technique | Mot de passe commun des comptes de démonstration | Confidentialité |
-| `DB_USERNAME` | Identifiant technique | Nomme le compte de base de données ; sans le mot de passe associé, il n'ouvre aucun accès | Confidentialité (faible) |
-| `APP_ADMIN_EMAIL` | Identifiant / configuration | Désigne le compte à amorcer ; n'est pas un secret, mais révèle le compte à privilèges | Confidentialité (faible) |
-| Disponibilité de l'API et de la base | — | Sans elles, aucune consultation ni génération n'est possible | Disponibilité |
+
+| Donnée / Secret                                     | Catégorie                                | Pourquoi sensible                                                                           | Enjeu CIA principal         |
+| --------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------- | --------------------------- |
+| Nom, adresse e-mail                                 | Donnée métier                            | Identifient une personne physique                                                           | Confidentialité             |
+| Salaire de base (`base_salary`)                     | Donnée métier                            | Rémunération individuelle ; base de tous les calculs                                        | Confidentialité + Intégrité |
+| Historique des salaires simulés (`salary_records`)  | Donnée métier                            | Reconstitue la rémunération dans le temps                                                   | Confidentialité + Intégrité |
+| Cotisations (`contributions`)                       | Donnée métier                            | Engagements d'un participant                                                                | Intégrité                   |
+| Appartenance à une tontine (`tontine_members`)      | Donnée métier                            | Révèle l'adhésion à un groupe d'épargne                                                     | Confidentialité             |
+| Ordre de passage (`turn_order`)                     | Donnée métier                            | Détermine qui encaisse la cagnotte et quand                                                 | Intégrité                   |
+| Demandes d'adhésion (`tontine_join_requests`)       | Donnée métier                            | Contiennent un message libre du demandeur                                                   | Confidentialité             |
+| Journal d'audit (`audit_logs`)                      | Donnée métier                            | Sa valeur probante repose sur son exactitude                                                | Intégrité                   |
+| Empreinte du mot de passe (`password_hash`, BCrypt) | Donnée d'authentification                | Sa divulgation exposerait à une attaque hors ligne                                          | Confidentialité             |
+| **Jeton JWT**                                       | Donnée d'authentification (*credential*) | Porte l'identité et le rôle de l'appelant ; quiconque le détient agit au nom de son porteur | Confidentialité + Intégrité |
+| Statut du compte (`PENDING`, `ACTIVE`, `REJECTED`)  | Donnée d'authentification                | Conditionne l'accès à l'application                                                         | Intégrité                   |
+| Rôle (`EMPLOYEE`, `ACCOUNTANT`, `ADMIN`)            | Donnée d'authentification                | Détermine les autorisations                                                                 | Intégrité                   |
+| `JWT_SECRET`                                        | Secret cryptographique                   | Clé de signature des jetons : la connaître permet d'en forger                               | Confidentialité + Intégrité |
+| `DB_PASSWORD`                                       | Secret technique                         | Ouvre un accès direct à la base, hors de tout contrôle applicatif                           | Confidentialité + Intégrité |
+| `APP_ADMIN_PASSWORD`                                | Secret technique                         | Mot de passe du compte administrateur initial                                               | Confidentialité             |
+| `APP_SEED_PASSWORD`                                 | Secret technique                         | Mot de passe commun des comptes de démonstration                                            | Confidentialité             |
+| `DB_USERNAME`                                       | Identifiant technique                    | Nomme le compte de base de données ; sans le mot de passe associé, il n'ouvre aucun accès   | Confidentialité (faible)    |
+| `APP_ADMIN_EMAIL`                                   | Identifiant / configuration              | Désigne le compte à amorcer ; n'est pas un secret, mais révèle le compte à privilèges       | Confidentialité (faible)    |
+| Disponibilité de l'API et de la base                | —                                        | Sans elles, aucune consultation ni génération n'est possible                                | Disponibilité               |
+
 
 Ces trois catégories appellent des protections différentes. Une **donnée métier** décrit une
 personne ou une opération : elle se protège par le contrôle d'accès. Une **donnée
@@ -157,34 +166,38 @@ excessif, car ils désignent des comptes à privilèges.
 
 L'énumération `Role.java` définit exactement trois rôles : `EMPLOYEE`, `ACCOUNTANT`, `ADMIN`.
 
-| Rôle | Responsabilités principales | Accès aux données sensibles |
-|---|---|---|
-| `EMPLOYEE` | Consulter son profil et son historique de salaires ; parcourir les tontines ouvertes ; demander à rejoindre une tontine, retirer sa demande, quitter une tontine non démarrée ; changer son mot de passe | Son propre salaire et ses propres cotisations uniquement |
-| `ACCOUNTANT` | Tout ce que peut un `EMPLOYEE`, plus : créer, modifier, activer, annuler et supprimer des tontines ; ajouter et retirer des participants ; arbitrer les demandes d'adhésion ; déclencher les générations ; consulter et corriger les salaires de base | Salaire de base et historique de tous les employés |
-| `ADMIN` | Valider et refuser les inscriptions ; attribuer les rôles ; consulter le journal d'audit ; dispose également des droits de gestion des tontines et d'accès à l'annuaire salarial | Tous les comptes, tous les salaires, le journal d'audit |
+
+| Rôle         | Responsabilités principales                                                                                                                                                                                                                           | Accès aux données sensibles                              |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `EMPLOYEE`   | Consulter son profil et son historique de salaires ; parcourir les tontines ouvertes ; demander à rejoindre une tontine, retirer sa demande, quitter une tontine non démarrée ; changer son mot de passe                                              | Son propre salaire et ses propres cotisations uniquement |
+| `ACCOUNTANT` | Tout ce que peut un `EMPLOYEE`, plus : créer, modifier, activer, annuler et supprimer des tontines ; ajouter et retirer des participants ; arbitrer les demandes d'adhésion ; déclencher les générations ; consulter et corriger les salaires de base | Salaire de base et historique de tous les employés       |
+| `ADMIN`      | Valider et refuser les inscriptions ; attribuer les rôles ; consulter le journal d'audit ; dispose également des droits de gestion des tontines et d'accès à l'annuaire salarial                                                                      | Tous les comptes, tous les salaires, le journal d'audit  |
+
 
 **Règles vérifiées dans le backend.**
 
-| Question | Réponse constatée |
-|---|---|
-| Qui modifie le salaire d'un `EMPLOYEE` ? | `ACCOUNTANT` ou `ADMIN` (`EmployeeDirectoryController`, `@PreAuthorize("hasAnyRole('ACCOUNTANT', 'ADMIN')")` ; `AdminUserController`, réservé à `ADMIN`) |
-| Qui modifie le salaire d'un `ACCOUNTANT` ? | Les mêmes rôles : le comptable est un salarié ordinaire dans l'annuaire |
-| Peut-on modifier son propre salaire ? | Non, quel que soit le rôle (`UserService.updateBaseSalary`) |
-| Ce que `ADMIN` peut faire | Valider ou refuser une inscription, attribuer un rôle, corriger un salaire, lire le journal d'audit, gérer les tontines |
-| Ce que `ADMIN` ne peut pas faire | Modifier son propre rôle, refuser son propre compte, fixer son propre salaire, participer à une tontine |
-| Ce que `ACCOUNTANT` peut faire | Gérer tontines et salaires, et participer aux tontines comme tout salarié |
-| Ce que `ACCOUNTANT` ne peut pas faire | Accéder à `/api/admin/**`, fixer son propre salaire, s'ajouter lui-même à une tontine, accepter sa propre demande |
-| `ADMIN` participe-t-il aux tontines ? | Non : `Role.participatesInTontines()` retourne `false`. Ce rôle n'a pas de salaire de base |
-| `ACCOUNTANT` participe-t-il ? | Oui : la même méthode retourne `true` |
+
+| Question                                   | Réponse constatée                                                                                                                                        |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Qui modifie le salaire d'un `EMPLOYEE` ?   | `ACCOUNTANT` ou `ADMIN` (`EmployeeDirectoryController`, `@PreAuthorize("hasAnyRole('ACCOUNTANT', 'ADMIN')")` ; `AdminUserController`, réservé à `ADMIN`) |
+| Qui modifie le salaire d'un `ACCOUNTANT` ? | Les mêmes rôles : le comptable est un salarié ordinaire dans l'annuaire                                                                                  |
+| Peut-on modifier son propre salaire ?      | Non, quel que soit le rôle (`UserService.updateBaseSalary`)                                                                                              |
+| Ce que `ADMIN` peut faire                  | Valider ou refuser une inscription, attribuer un rôle, corriger un salaire, lire le journal d'audit, gérer les tontines                                  |
+| Ce que `ADMIN` ne peut pas faire           | Modifier son propre rôle, refuser son propre compte, fixer son propre salaire, participer à une tontine                                                  |
+| Ce que `ACCOUNTANT` peut faire             | Gérer tontines et salaires, et participer aux tontines comme tout salarié                                                                                |
+| Ce que `ACCOUNTANT` ne peut pas faire      | Accéder à `/api/admin/**`, fixer son propre salaire, s'ajouter lui-même à une tontine, accepter sa propre demande                                        |
+| `ADMIN` participe-t-il aux tontines ?      | Non : `Role.participatesInTontines()` retourne `false`. Ce rôle n'a pas de salaire de base                                                               |
+| `ACCOUNTANT` participe-t-il ?              | Oui : la même méthode retourne `true`                                                                                                                    |
+
 
 **Séparation des tâches autour de la gestion salariale.** Trois règles distinctes,
 implémentées côté service et donc indépendantes de l'interface :
 
 1. Personne ne fixe son propre salaire de base (`UserService.updateBaseSalary`).
 2. Personne ne s'ajoute soi-même à une tontine qu'il administre, ordre de passage compris
-   (`TontineService.addMember`).
+  (`TontineService.addMember`).
 3. Personne n'accepte sa propre demande d'adhésion (`JoinRequestService.accept`), car cela
-   permettrait de s'attribuer l'ordre de passage 1 et d'encaisser la cagnotte avant d'avoir
+  permettrait de s'attribuer l'ordre de passage 1 et d'encaisser la cagnotte avant d'avoir
    cotisé.
 
 Ces contrôles résident dans la couche service. Le frontend masque par ailleurs les actions
@@ -193,7 +206,11 @@ d'accès.
 
 ---
 
+
+
 ### 1.2 Architecture
+
+
 
 #### Vue d'ensemble
 
@@ -210,7 +227,7 @@ La navigation repose sur React Router 7. `AppRoutes` déclare deux niveaux de ga
 
 - `ProtectedRoute` redirige vers `/login` lorsqu'aucun utilisateur n'est chargé ;
 - `RoleProtectedRoute` redirige vers `/forbidden` lorsque le rôle de l'utilisateur n'est pas
-  dans la liste `allowedRoles`.
+dans la liste `allowedRoles`.
 
 L'état d'authentification est porté par `AuthContext` / `AuthProvider`, qui conserve
 l'utilisateur courant en mémoire React (`useState`) et l'obtient du backend. Aucun jeton n'est
@@ -251,15 +268,17 @@ vaut `validate`, Hibernate ne crée ni ne modifie donc aucune table.
 
 Sept migrations, V1 à V7, portent l'historique du schéma. Sept tables métier :
 
-| Table | Contenu |
-|---|---|
-| `users` | Comptes : nom, e-mail, empreinte du mot de passe, rôle, statut, salaire de base |
-| `tontines` | Tontines : cotisation par tour, cadence, durée de tour personnalisée, date de début, nombre de places, statut |
-| `tontine_members` | Participation acceptée d'un utilisateur à une tontine, avec son ordre de passage |
-| `tontine_join_requests` | Demandes d'adhésion et leur arbitrage |
-| `contributions` | Cotisation d'un participant pour un tour donné |
-| `salary_records` | Salaire simulé d'un participant pour un tour donné, rattaché à un mois de paie |
-| `audit_logs` | Journal des actions sensibles |
+
+| Table                   | Contenu                                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `users`                 | Comptes : nom, e-mail, empreinte du mot de passe, rôle, statut, salaire de base                               |
+| `tontines`              | Tontines : cotisation par tour, cadence, durée de tour personnalisée, date de début, nombre de places, statut |
+| `tontine_members`       | Participation acceptée d'un utilisateur à une tontine, avec son ordre de passage                              |
+| `tontine_join_requests` | Demandes d'adhésion et leur arbitrage                                                                         |
+| `contributions`         | Cotisation d'un participant pour un tour donné                                                                |
+| `salary_records`        | Salaire simulé d'un participant pour un tour donné, rattaché à un mois de paie                                |
+| `audit_logs`            | Journal des actions sensibles                                                                                 |
+
 
 Les invariants sont portés par la base et non par le seul code Java : unicité de l'e-mail,
 unicité de la participation et de l'ordre de passage au sein d'une tontine, unicité d'une
@@ -271,63 +290,69 @@ tour), contraintes de domaine sur les statuts, les rôles et les montants.
 Description de l'implémentation constatée, sans appréciation à ce stade.
 
 - **Jeton JWT.** `JwtService` construit le jeton avec `Jwts.builder()`, en y plaçant l'e-mail
-  comme sujet, l'identifiant utilisateur et le rôle comme revendications, ainsi que les dates
-  d'émission et d'expiration.
+comme sujet, l'identifiant utilisateur et le rôle comme revendications, ainsi que les dates
+d'émission et d'expiration.
 - **Algorithme.** La clé est dérivée du secret par `Keys.hmacShaKeyFor(...)`, ce qui sélectionne
-  un algorithme HMAC-SHA dont la variante dépend de la longueur de la clé fournie. Le
-  démarrage échoue si le secret fait moins de 32 caractères
-  (`AppProperties.Jwt.MINIMUM_SECRET_LENGTH`).
+un algorithme HMAC-SHA dont la variante dépend de la longueur de la clé fournie. Le
+démarrage échoue si le secret fait moins de 32 caractères
+(`AppProperties.Jwt.MINIMUM_SECRET_LENGTH`).
 - **Durée de vie.** Configurable par `JWT_EXPIRATION_SECONDS`, valeur par défaut 3600 secondes
-  dans `application.yml` et dans `docker-compose.yml`.
+dans `application.yml` et dans `docker-compose.yml`.
 - **Cookie.** `JwtCookieService` construit un `ResponseCookie` avec `httpOnly(true)`,
-  `path("/")`, `sameSite("Lax")` et `secure(...)` piloté par `JWT_COOKIE_SECURE` (défaut
-  `false`). La déconnexion émet un cookie vide dont l'âge maximal est nul.
+`path("/")`, `sameSite("Lax")` et `secure(...)` piloté par `JWT_COOKIE_SECURE` (défaut
+`false`). La déconnexion émet un cookie vide dont l'âge maximal est nul.
 - **Stratégie de session.** `SessionCreationPolicy.STATELESS` dans `SecurityConfig`.
 - **Chaîne de filtres.** `JwtAuthenticationFilter` est inséré avant
-  `UsernamePasswordAuthenticationFilter`. Les routes publiques sont `/api/auth/register`,
-  `/api/auth/login`, `/api/auth/logout`, `/actuator/health`, `/v3/api-docs/**`,
-  `/swagger-ui/**` et `/swagger-ui.html`. `/api/admin/**` exige le rôle `ADMIN`, et toute
-  autre requête exige une authentification.
+`UsernamePasswordAuthenticationFilter`. Les routes publiques sont `/api/auth/register`,
+`/api/auth/login`, `/api/auth/logout`, `/actuator/health`, `/v3/api-docs/**`,
+`/swagger-ui/**` et `/swagger-ui.html`. `/api/admin/**` exige le rôle `ADMIN`, et toute
+autre requête exige une authentification.
 - **Contrôle du rôle par endpoint.** `@PreAuthorize` est utilisé sur `AdminUserController`,
-  `AdminAuditController`, `EmployeeDirectoryController`, ainsi que sur des méthodes de
-  `TontineController`, `JoinRequestController`, `ContributionController` et `SalaryController`.
+`AdminAuditController`, `EmployeeDirectoryController`, ainsi que sur des méthodes de
+`TontineController`, `JoinRequestController`, `ContributionController` et `SalaryController`.
 - **Vérification du statut à chaque requête.** `JwtAuthenticationFilter.authenticate` interroge
-  `userRepository.existsByIdAndStatus(id, ACTIVE)` avant de peupler le contexte de sécurité ;
-  un jeton valide dont le compte n'est plus `ACTIVE` n'authentifie donc pas la requête.
+`userRepository.existsByIdAndStatus(id, ACTIVE)` avant de peupler le contexte de sécurité ;
+un jeton valide dont le compte n'est plus `ACTIVE` n'authentifie donc pas la requête.
 - **Identité de l'appelant.** `CurrentUserProvider` lit l'utilisateur depuis le contexte de
-  sécurité, jamais depuis un paramètre fourni par le client.
+sécurité, jamais depuis un paramètre fourni par le client.
 - **CORS.** `SecurityConfig.corsConfigurationSource` autorise une seule origine, celle de
-  `APP_FRONTEND_URL`, les méthodes GET, POST, PATCH, PUT, DELETE, OPTIONS, les en-têtes
-  `Content-Type`, `Accept`, `X-Requested-With`, avec `allowCredentials(true)`, sur `/api/**`.
+`APP_FRONTEND_URL`, les méthodes GET, POST, PATCH, PUT, DELETE, OPTIONS, les en-têtes
+`Content-Type`, `Accept`, `X-Requested-With`, avec `allowCredentials(true)`, sur `/api/**`.
 - **CSRF.** La protection CSRF de Spring Security est désactivée dans `SecurityConfig`.
 - **Mots de passe.** Hachés avec `BCryptPasswordEncoder` de coût 12.
 
+
+
 #### Flux de données
 
-| Source | Destination | Données transportées | Protocole / mécanisme |
-|---|---|---|---|
-| Utilisateur | Navigateur | Saisies de formulaire, identifiants | Interface graphique |
-| Navigateur | React (SPA) | Événements d'interface, navigation | Exécution locale JavaScript |
-| React | Spring Boot | Identifiants de connexion, formulaires, identifiants de ressources, paramètres de requête, données métier | HTTP/JSON via Axios, `withCredentials: true` |
-| Navigateur | Spring Boot | Jeton JWT | Cookie `HttpOnly`, `SameSite=Lax`, transmis automatiquement |
-| Spring Boot | PostgreSQL | Comptes, tontines, participations, demandes, cotisations, salaires simulés, journal d'audit | JDBC via HikariCP |
-| PostgreSQL | Spring Boot | Résultats de requêtes | JDBC |
-| Spring Boot | React | Réponses JSON, cookie d'authentification à la connexion, réponses d'erreur normalisées | HTTP/JSON |
-| Planificateur | Services métier | Déclenchement des générations pour les tours échus | Appel interne `@Scheduled` |
-| Services métier | PostgreSQL | Cotisations et salaires générés | JDBC |
-| Actions sensibles | `AuditService` → `audit_logs` | Auteur, action, type et identifiant d'entité, détail textuel | Appel interne puis JDBC |
+
+| Source            | Destination                   | Données transportées                                                                                      | Protocole / mécanisme                                       |
+| ----------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Utilisateur       | Navigateur                    | Saisies de formulaire, identifiants                                                                       | Interface graphique                                         |
+| Navigateur        | React (SPA)                   | Événements d'interface, navigation                                                                        | Exécution locale JavaScript                                 |
+| React             | Spring Boot                   | Identifiants de connexion, formulaires, identifiants de ressources, paramètres de requête, données métier | HTTP/JSON via Axios, `withCredentials: true`                |
+| Navigateur        | Spring Boot                   | Jeton JWT                                                                                                 | Cookie `HttpOnly`, `SameSite=Lax`, transmis automatiquement |
+| Spring Boot       | PostgreSQL                    | Comptes, tontines, participations, demandes, cotisations, salaires simulés, journal d'audit               | JDBC via HikariCP                                           |
+| PostgreSQL        | Spring Boot                   | Résultats de requêtes                                                                                     | JDBC                                                        |
+| Spring Boot       | React                         | Réponses JSON, cookie d'authentification à la connexion, réponses d'erreur normalisées                    | HTTP/JSON                                                   |
+| Planificateur     | Services métier               | Déclenchement des générations pour les tours échus                                                        | Appel interne `@Scheduled`                                  |
+| Services métier   | PostgreSQL                    | Cotisations et salaires générés                                                                           | JDBC                                                        |
+| Actions sensibles | `AuditService` → `audit_logs` | Auteur, action, type et identifiant d'entité, détail textuel                                              | Appel interne puis JDBC                                     |
+
+
+
 
 #### Environnements
 
 Le dépôt permet deux modes d'exécution locale, tous deux décrits dans le `Makefile` :
 
 - **Mode développement** (`make dev`) : PostgreSQL dans un conteneur Docker, backend lancé par
-  Maven sur la machine hôte, frontend servi par Vite. Les variables proviennent du fichier
-  `.env`, chargé par le `Makefile`.
+Maven sur la machine hôte, frontend servi par Vite. Les variables proviennent du fichier
+`.env`, chargé par le `Makefile`.
 - **Pile conteneurisée complète** (`make up` / `docker compose up --build`) : trois services
-  Docker — `postgres`, `backend`, `frontend` — sur un réseau interne `salarytontine-net`, avec
-  des sondes de santé et un ordonnancement des démarrages (`depends_on` conditionné par
-  `service_healthy`). Le frontend est alors servi par Nginx.
+Docker — `postgres`, `backend`, `frontend` — sur un réseau interne `salarytontine-net`, avec
+des sondes de santé et un ordonnancement des démarrages (`depends_on` conditionné par
+`service_healthy`). Le frontend est alors servi par Nginx.
 
 Les images sont construites en plusieurs étapes : compilation Maven puis
 `eclipse-temurin:21-jre-alpine` pour le backend, build Vite puis `nginx:1.27-alpine` pour le
@@ -387,6 +412,10 @@ flowchart TD
     CTRL -->|Réponses JSON| AX
 ```
 
+
+
+
+
 #### Architecture générale finalisée
 
 Le diagramme ci-dessous présente la version finalisée de l'architecture générale de
@@ -395,6 +424,8 @@ SalaryTontine, en synthétisant les principaux composants applicatifs et leurs i
 ![Architecture générale finalisée de SalaryTontine](docs/architecture-salarytontine.png)
 
 ---
+
+
 
 ## 2. Threat Modeling
 
@@ -412,20 +443,28 @@ Les trois acteurs correspondent exactement aux rôles de l'énumération `Role.j
 externes au système : l'application ne contrôle ni leur poste, ni leur navigateur, ni leur
 comportement.
 
-| Acteur | Rôle dans le système |
-|---|---|
-| `EMPLOYEE` | Consulte son salaire simulé, demande à rejoindre une tontine, quitte une tontine non démarrée |
-| `ACCOUNTANT` | Gère les tontines, arbitre les adhésions, consulte et corrige les salaires de base |
-| `ADMIN` | Valide les inscriptions, attribue les rôles, consulte le journal d'audit |
+
+| Acteur       | Rôle dans le système                                                                          |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| `EMPLOYEE`   | Consulte son salaire simulé, demande à rejoindre une tontine, quitte une tontine non démarrée |
+| `ACCOUNTANT` | Gère les tontines, arbitre les adhésions, consulte et corrige les salaires de base            |
+| `ADMIN`      | Valide les inscriptions, attribue les rôles, consulte le journal d'audit                      |
+
+
+
 
 #### Processus
 
-| Processus | Description |
-|---|---|
-| Navigateur / React SPA | Application monopage exécutée sur le poste de l'utilisateur. Elle assemble les requêtes et affiche les réponses ; elle ne détient aucun secret et n'applique aucun contrôle d'accès opposable |
-| Spring Boot REST API + Spring Security / JWT | Point d'entrée unique du système. Vérifie la signature du jeton, contrôle le statut du compte, applique les autorisations de rôle et valide les DTO |
-| Services métier | Couche transactionnelle : règles de tontine, capacité de cotisation, séparation des tâches, calculs salariaux |
-| `MonthlyRunScheduler` | Déclencheur temporel interne. Il n'est associé à aucun acteur : c'est le seul processus qui agit sans utilisateur à l'origine |
+
+| Processus                                    | Description                                                                                                                                                                                   |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Navigateur / React SPA                       | Application monopage exécutée sur le poste de l'utilisateur. Elle assemble les requêtes et affiche les réponses ; elle ne détient aucun secret et n'applique aucun contrôle d'accès opposable |
+| Spring Boot REST API + Spring Security / JWT | Point d'entrée unique du système. Vérifie la signature du jeton, contrôle le statut du compte, applique les autorisations de rôle et valide les DTO                                           |
+| Services métier                              | Couche transactionnelle : règles de tontine, capacité de cotisation, séparation des tâches, calculs salariaux                                                                                 |
+| `MonthlyRunScheduler`                        | Déclencheur temporel interne. Il n'est associé à aucun acteur : c'est le seul processus qui agit sans utilisateur à l'origine                                                                 |
+
+
+
 
 #### Store
 
@@ -438,18 +477,22 @@ l'application.
 
 Dix flux sont modélisés, annotés du type de données transportées et du protocole employé.
 
-| Flux | Données transportées | Protocole |
-|---|---|---|
-| Actions `EMPLOYEE` → SPA | Saisies de formulaire, navigation | Interface graphique |
-| Actions `ACCOUNTANT` → SPA | Saisies de formulaire, décisions d'arbitrage | Interface graphique |
-| Actions `ADMIN` → SPA | Saisies de formulaire, décisions de validation | Interface graphique |
-| SPA → API | Requêtes HTTP/JSON accompagnées du cookie JWT transmis par le navigateur | HTTP/JSON, authentifié |
-| API → SPA | Réponses JSON et en-tête `Set-Cookie` à la connexion | HTTP/JSON, authentifié |
-| API → Services métier | Utilisateur authentifié, rôle, DTO validés | Appel interne |
-| Services métier → API | Résultats métier | Appel interne |
-| Services métier → PostgreSQL | Lectures et écritures : utilisateurs, tontines, cotisations, salaires, audit | JPA/JDBC |
-| PostgreSQL → Services métier | Résultats de requêtes | JPA/JDBC |
-| `MonthlyRunScheduler` → Services métier | Tours échus à traiter | `@Scheduled` |
+
+| Flux                                    | Données transportées                                                         | Protocole              |
+| --------------------------------------- | ---------------------------------------------------------------------------- | ---------------------- |
+| Actions `EMPLOYEE` → SPA                | Saisies de formulaire, navigation                                            | Interface graphique    |
+| Actions `ACCOUNTANT` → SPA              | Saisies de formulaire, décisions d'arbitrage                                 | Interface graphique    |
+| Actions `ADMIN` → SPA                   | Saisies de formulaire, décisions de validation                               | Interface graphique    |
+| SPA → API                               | Requêtes HTTP/JSON accompagnées du cookie JWT transmis par le navigateur     | HTTP/JSON, authentifié |
+| API → SPA                               | Réponses JSON et en-tête `Set-Cookie` à la connexion                         | HTTP/JSON, authentifié |
+| API → Services métier                   | Utilisateur authentifié, rôle, DTO validés                                   | Appel interne          |
+| Services métier → API                   | Résultats métier                                                             | Appel interne          |
+| Services métier → PostgreSQL            | Lectures et écritures : utilisateurs, tontines, cotisations, salaires, audit | JPA/JDBC               |
+| PostgreSQL → Services métier            | Résultats de requêtes                                                        | JPA/JDBC               |
+| `MonthlyRunScheduler` → Services métier | Tours échus à traiter                                                        | `@Scheduled`           |
+
+
+
 
 #### Frontières de confiance
 
@@ -480,27 +523,31 @@ moment, mais ses écritures franchissent TB2 comme celles de tout autre service.
 Huit menaces ont été documentées, réparties sur quatre composants et flux, et couvrant les
 **six catégories STRIDE** — au-delà du minimum de cinq exigé.
 
-| # | Composant / Flux | Catégorie STRIDE | Description de la menace | Sévérité | Mitigation proposée |
-|---|---|---|---|---|---|
-| 1 | Spring Boot REST API | Elevation of privilege | Un utilisateur tente d'accéder à une fonction privilégiée en manipulant son rôle côté client, un identifiant de ressource ou un jeton | **High** | Vérifier la signature JWT, contrôler le statut `ACTIVE` en base, appliquer `@PreAuthorize` et les contrôles d'autorisation côté backend, et ne jamais considérer les gardes React comme un contrôle de sécurité |
-| 2 | Spring Boot REST API | Denial of service | Des requêtes répétées sur `/api/auth/login` ou `/api/auth/register` consomment des ressources et empêchent les utilisateurs légitimes d'accéder au service | Medium | Ajouter une limitation de débit sur les endpoints publics sensibles, limiter les tentatives, journaliser les abus et prévoir des seuils adaptés |
-| 3 | Spring Boot REST API | Information disclosure | Une erreur de contrôle d'accès, au niveau d'un endpoint ou d'un objet, expose le salaire de base, l'historique salarial, les cotisations ou les données de tontine d'un autre utilisateur | **High** | Appliquer le contrôle de rôle et l'autorisation au niveau objet côté serveur, filtrer les ressources selon l'utilisateur courant, utiliser des DTO minimaux, et tester les accès croisés entre les trois rôles |
-| 4 | Services métier | Repudiation | Un `ACCOUNTANT` ou un `ADMIN` conteste une modification de salaire, une décision d'adhésion ou une opération sur une tontine, la piste d'audit étant incomplète ou modifiable | Medium | Auditer toute action sensible avec auteur, horodatage, cible et contexte ; protéger l'intégrité des `audit_logs` et envisager un stockage en ajout seul ou une centralisation externe |
-| 5 | PostgreSQL 16 | Tampering | Un accès non autorisé à la base permet de modifier `salary_records`, `contributions`, les rôles, `turn_order` ou `audit_logs` en contournant les règles métier | **High** | Restreindre PostgreSQL au réseau interne en production, appliquer le moindre privilège au compte de base, ne pas publier inutilement le port, conserver les contraintes SQL, mettre en place sauvegardes et contrôles d'intégrité |
-| 6 | Flux SPA → API (cookie JWT) | Spoofing | Un attaquant qui obtient le cookie JWT rejoue le jeton et agit au nom de sa victime jusqu'à expiration. Le risque est majeur pour un compte `ACCOUNTANT` ou `ADMIN` | **High** | Conserver le JWT en cookie `HttpOnly`, imposer HTTPS et `Secure=true` en production, maintenir une durée de vie courte, protéger et faire tourner `JWT_SECRET`, prévoir révocation et rotation |
-| 7 | Flux SPA → API | Tampering | Le client modifie identifiants, montants, paramètres ou ordres envoyés dans les requêtes afin d'altérer une tontine, une adhésion, une cotisation ou un calcul salarial | **High** | Valider toutes les entrées côté serveur, dériver l'identité du JWT vérifié, ne jamais accepter un calcul salarial fourni par le client, appliquer les règles dans les services et conserver les contraintes d'intégrité en base |
-| 8 | Flux SPA → API | Information disclosure | Déployée sans TLS, l'application laisse intercepter en transit les identifiants, les réponses métier et le cookie d'authentification | **High** | Imposer HTTPS/TLS en production, activer `Secure=true` sur le cookie, ajouter HSTS et refuser les accès non chiffrés |
+
+| #   | Composant / Flux            | Catégorie STRIDE       | Description de la menace                                                                                                                                                                  | Sévérité | Mitigation proposée                                                                                                                                                                                                               |
+| --- | --------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Spring Boot REST API        | Elevation of privilege | Un utilisateur tente d'accéder à une fonction privilégiée en manipulant son rôle côté client, un identifiant de ressource ou un jeton                                                     | **High** | Vérifier la signature JWT, contrôler le statut `ACTIVE` en base, appliquer `@PreAuthorize` et les contrôles d'autorisation côté backend, et ne jamais considérer les gardes React comme un contrôle de sécurité                   |
+| 2   | Spring Boot REST API        | Denial of service      | Des requêtes répétées sur `/api/auth/login` ou `/api/auth/register` consomment des ressources et empêchent les utilisateurs légitimes d'accéder au service                                | Medium   | Ajouter une limitation de débit sur les endpoints publics sensibles, limiter les tentatives, journaliser les abus et prévoir des seuils adaptés                                                                                   |
+| 3   | Spring Boot REST API        | Information disclosure | Une erreur de contrôle d'accès, au niveau d'un endpoint ou d'un objet, expose le salaire de base, l'historique salarial, les cotisations ou les données de tontine d'un autre utilisateur | **High** | Appliquer le contrôle de rôle et l'autorisation au niveau objet côté serveur, filtrer les ressources selon l'utilisateur courant, utiliser des DTO minimaux, et tester les accès croisés entre les trois rôles                    |
+| 4   | Services métier             | Repudiation            | Un `ACCOUNTANT` ou un `ADMIN` conteste une modification de salaire, une décision d'adhésion ou une opération sur une tontine, la piste d'audit étant incomplète ou modifiable             | Medium   | Auditer toute action sensible avec auteur, horodatage, cible et contexte ; protéger l'intégrité des `audit_logs` et envisager un stockage en ajout seul ou une centralisation externe                                             |
+| 5   | PostgreSQL 16               | Tampering              | Un accès non autorisé à la base permet de modifier `salary_records`, `contributions`, les rôles, `turn_order` ou `audit_logs` en contournant les règles métier                            | **High** | Restreindre PostgreSQL au réseau interne en production, appliquer le moindre privilège au compte de base, ne pas publier inutilement le port, conserver les contraintes SQL, mettre en place sauvegardes et contrôles d'intégrité |
+| 6   | Flux SPA → API (cookie JWT) | Spoofing               | Un attaquant qui obtient le cookie JWT rejoue le jeton et agit au nom de sa victime jusqu'à expiration. Le risque est majeur pour un compte `ACCOUNTANT` ou `ADMIN`                       | **High** | Conserver le JWT en cookie `HttpOnly`, imposer HTTPS et `Secure=true` en production, maintenir une durée de vie courte, protéger et faire tourner `JWT_SECRET`, prévoir révocation et rotation                                    |
+| 7   | Flux SPA → API              | Tampering              | Le client modifie identifiants, montants, paramètres ou ordres envoyés dans les requêtes afin d'altérer une tontine, une adhésion, une cotisation ou un calcul salarial                   | **High** | Valider toutes les entrées côté serveur, dériver l'identité du JWT vérifié, ne jamais accepter un calcul salarial fourni par le client, appliquer les règles dans les services et conserver les contraintes d'intégrité en base   |
+| 8   | Flux SPA → API              | Information disclosure | Déployée sans TLS, l'application laisse intercepter en transit les identifiants, les réponses métier et le cookie d'authentification                                                      | **High** | Imposer HTTPS/TLS en production, activer `Secure=true` sur le cookie, ajouter HSTS et refuser les accès non chiffrés                                                                                                              |
+
 
 **Couverture obtenue**
 
-| Catégorie STRIDE | Menaces |
-|---|---|
-| Spoofing | 1 (n° 6) |
-| Tampering | 2 (n° 5, 7) |
-| Repudiation | 1 (n° 4) |
+
+| Catégorie STRIDE       | Menaces     |
+| ---------------------- | ----------- |
+| Spoofing               | 1 (n° 6)    |
+| Tampering              | 2 (n° 5, 7) |
+| Repudiation            | 1 (n° 4)    |
 | Information disclosure | 2 (n° 3, 8) |
-| Denial of service | 1 (n° 2) |
-| Elevation of privilege | 1 (n° 1) |
+| Denial of service      | 1 (n° 2)    |
+| Elevation of privilege | 1 (n° 1)    |
+
 
 Six menaces sont de sévérité **High**, deux de sévérité **Medium**. Cette répartition n'est pas
 fortuite : les menaces concentrées sur l'API et sur le flux qui traverse TB1 touchent
@@ -510,18 +557,22 @@ sans exposer ni altérer directement les données.
 
 ### 2.3 Priorisation des Menaces
 
+
+
 #### Classement
 
-| Rang | # | Menace | Catégorie | Sévérité |
-|---|---|---|---|---|
-| 1 | 1 | Élévation de privilèges vers `ACCOUNTANT` ou `ADMIN` | Elevation of privilege | High |
-| 2 | 6 | Usurpation d'identité par vol ou rejeu du JWT | Spoofing | High |
-| 3 | 3 | Divulgation de salaires ou de données d'un autre utilisateur | Information disclosure | High |
-| 4 | 7 | Altération des données métier envoyées par le client | Tampering | High |
-| 5 | 8 | Interception de données sensibles faute de TLS | Information disclosure | High |
-| 6 | 5 | Altération directe des données en base | Tampering | High |
-| 7 | 4 | Déni d'une action sensible insuffisamment traçable | Repudiation | Medium |
-| 8 | 2 | Saturation des endpoints d'authentification | Denial of service | Medium |
+
+| Rang | #   | Menace                                                       | Catégorie              | Sévérité |
+| ---- | --- | ------------------------------------------------------------ | ---------------------- | -------- |
+| 1    | 1   | Élévation de privilèges vers `ACCOUNTANT` ou `ADMIN`         | Elevation of privilege | High     |
+| 2    | 6   | Usurpation d'identité par vol ou rejeu du JWT                | Spoofing               | High     |
+| 3    | 3   | Divulgation de salaires ou de données d'un autre utilisateur | Information disclosure | High     |
+| 4    | 7   | Altération des données métier envoyées par le client         | Tampering              | High     |
+| 5    | 8   | Interception de données sensibles faute de TLS               | Information disclosure | High     |
+| 6    | 5   | Altération directe des données en base                       | Tampering              | High     |
+| 7    | 4   | Déni d'une action sensible insuffisamment traçable           | Repudiation            | Medium   |
+| 8    | 2   | Saturation des endpoints d'authentification                  | Denial of service      | Medium   |
+
 
 Le classement ne suit pas la seule sévérité : à sévérité égale, il départage selon la
 **facilité d'exploitation** et selon l'**ampleur du dommage dans le contexte métier de
@@ -574,7 +625,11 @@ financière directe.
 
 ---
 
+
+
 ## 3. Analyse OWASP Top 10
+
+
 
 ### 3.1 Vulnérabilités Identifiées Manuellement
 
@@ -588,29 +643,37 @@ constituent pas des failles confirmées.
 
 #### Tableau de synthèse
 
-| Fichier | Ligne | Catégorie OWASP | CWE | Description | Sévérité |
-|---|---|---|---|---|---|
-| `backend/src/main/java/com/salarytontine/security/JwtAuthenticationFilter.java` | 51-55 | A01:2021 Broken Access Control | CWE-613 | Le rôle est lu depuis le JWT et jamais relu en base : une rétrogradation reste sans effet jusqu'à l'expiration du jeton | **High** |
-| `backend/src/main/java/com/salarytontine/config/SecurityConfig.java` | 39-47 | A07:2021 Identification and Authentication Failures | CWE-307 | Aucune limitation de débit ni verrouillage de compte sur `/api/auth/login` et `/api/auth/register` | **High** |
-| `backend/src/main/java/com/salarytontine/service/TontineService.java` | 133-135 | A01:2021 Broken Access Control | CWE-200 / CWE-359 | L'exception de lecture accordée aux tontines `DRAFT` expose le nom et l'adresse e-mail de leurs participants à tout compte authentifié | Medium |
-| `backend/src/main/java/com/salarytontine/service/AuthService.java` | 69-81 | A09:2021 Security Logging and Monitoring Failures | CWE-778 | Les échecs d'authentification ne produisent ni trace d'audit ni journal applicatif | Medium |
-| `backend/src/main/java/com/salarytontine/controller/AuthController.java` | 71-77 | A07:2021 Identification and Authentication Failures | CWE-613 | La déconnexion se limite à expirer le cookie côté client : aucune révocation serveur du jeton | Medium |
-| `backend/src/main/java/com/salarytontine/config/AppProperties.java` | 115 | A02:2021 Cryptographic Failures | CWE-614 | L'attribut `Secure` du cookie d'authentification vaut `false` par défaut, dans le code comme dans la configuration | Medium |
-| `docker-compose.yml` | 17-18 | A05:2021 Security Misconfiguration | CWE-668 | Le port PostgreSQL est publié sur l'hôte alors que le backend joint la base par le réseau interne | Medium |
-| `backend/src/main/java/com/salarytontine/service/AuthService.java` | 43-45 | A07:2021 Identification and Authentication Failures | CWE-204 | L'inscription distingue par un code 409 explicite un e-mail déjà enregistré d'un e-mail inconnu | Low |
+
+| Fichier                                                                         | Ligne   | Catégorie OWASP                                     | CWE               | Description                                                                                                                            | Sévérité |
+| ------------------------------------------------------------------------------- | ------- | --------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `backend/src/main/java/com/salarytontine/security/JwtAuthenticationFilter.java` | 51-55   | A01:2021 Broken Access Control                      | CWE-613           | Le rôle est lu depuis le JWT et jamais relu en base : une rétrogradation reste sans effet jusqu'à l'expiration du jeton                | **High** |
+| `backend/src/main/java/com/salarytontine/config/SecurityConfig.java`            | 39-47   | A07:2021 Identification and Authentication Failures | CWE-307           | Aucune limitation de débit ni verrouillage de compte sur `/api/auth/login` et `/api/auth/register`                                     | **High** |
+| `backend/src/main/java/com/salarytontine/service/TontineService.java`           | 133-135 | A01:2021 Broken Access Control                      | CWE-200 / CWE-359 | L'exception de lecture accordée aux tontines `DRAFT` expose le nom et l'adresse e-mail de leurs participants à tout compte authentifié | Medium   |
+| `backend/src/main/java/com/salarytontine/service/AuthService.java`              | 69-81   | A09:2021 Security Logging and Monitoring Failures   | CWE-778           | Les échecs d'authentification ne produisent ni trace d'audit ni journal applicatif                                                     | Medium   |
+| `backend/src/main/java/com/salarytontine/controller/AuthController.java`        | 71-77   | A07:2021 Identification and Authentication Failures | CWE-613           | La déconnexion se limite à expirer le cookie côté client : aucune révocation serveur du jeton                                          | Medium   |
+| `backend/src/main/java/com/salarytontine/config/AppProperties.java`             | 115     | A02:2021 Cryptographic Failures                     | CWE-614           | L'attribut `Secure` du cookie d'authentification vaut `false` par défaut, dans le code comme dans la configuration                     | Medium   |
+| `docker-compose.yml`                                                            | 17-18   | A05:2021 Security Misconfiguration                  | CWE-668           | Le port PostgreSQL est publié sur l'hôte alors que le backend joint la base par le réseau interne                                      | Medium   |
+| `backend/src/main/java/com/salarytontine/service/AuthService.java`              | 43-45   | A07:2021 Identification and Authentication Failures | CWE-204           | L'inscription distingue par un code 409 explicite un e-mail déjà enregistré d'un e-mail inconnu                                        | Low      |
+
+
+
 
 #### Protections déjà présentes et corrections recommandées
 
-| # | Constat | Protections déjà présentes | Correction recommandée |
-|---|---|---|---|
-| C1 | Rôle figé dans le JWT | Le statut du compte est revérifié en base à chaque requête : un compte rejeté perd l'accès immédiatement. Jeton signé en HMAC-SHA, durée de vie bornée à une heure | Remplacer `existsByIdAndStatus` par une lecture de l'entité et construire le principal à partir du rôle en base. La requête est déjà effectuée : le coût est nul |
-| C5 | Aucune limitation de débit | BCrypt en coût 12, supérieur au défaut. Message d'erreur uniforme entre e-mail inconnu et mot de passe erroné. Politique de mot de passe de 8 à 72 caractères imposée côté serveur | Limitation par adresse IP et par compte sur `/login` et `/register`, temporisation progressive, verrouillage temporaire après un nombre défini d'échecs |
-| C4 | E-mails exposés sur les tontines `DRAFT` | Authentification requise, aucun accès anonyme. Aucun montant dans le DTO concerné. L'accès se referme sur les seuls participants dès l'activation. Les cotisations restent filtrées par utilisateur | Retirer `userEmail` du DTO pour les non-gestionnaires, ou limiter l'exception `DRAFT` à la fiche de la tontine sans la liste nominative |
-| C6 | Échecs d'authentification non journalisés | Journal d'audit métier complet : vingt-deux actions tracées avec auteur, entité et horodatage. Un test d'intégration vérifie qu'aucune trace ne contient de secret | Ajouter deux actions d'audit `LOGIN_SUCCESS` et `LOGIN_FAILED` avec l'adresse IP, et un `log.warn` sur chaque échec |
-| C2 | Aucune révocation de session | Cookie `HttpOnly`, non exfiltrable par XSS. Durée de vie limitée à une heure. Le changement de mot de passe exige le mot de passe actuel : un jeton volé ne permet pas de verrouiller la victime | Ajouter une colonne `token_version` sur `users`, la porter en claim, l'incrémenter à la déconnexion et au changement de mot de passe, la comparer dans le filtre |
-| C3 | Cookie sans attribut `Secure` | `HttpOnly` et `SameSite=Lax` appliqués systématiquement. La variable `JWT_COOKIE_SECURE` est correctement externalisée et documentée | Inverser le défaut à `true` et ne le repasser à `false` que via un profil de développement explicite |
-| C9 | Port PostgreSQL publié | `DB_PASSWORD` obligatoire, avec échec explicite du démarrage si absent : aucun mot de passe par défaut. Réseau bridge dédié, healthchecks sur les trois services, volume nommé | Retirer la section `ports` du service `postgres` ; y accéder en développement par `docker compose exec` |
-| C7 | Énumération de comptes | La connexion ne fuit rien : message identique dans les deux cas. Le statut du compte n'est révélé qu'après vérification du mot de passe | Réponse uniforme à l'inscription, ou à défaut limitation de débit stricte sur `/register` |
+
+| #   | Constat                                   | Protections déjà présentes                                                                                                                                                                          | Correction recommandée                                                                                                                                           |
+| --- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | Rôle figé dans le JWT                     | Le statut du compte est revérifié en base à chaque requête : un compte rejeté perd l'accès immédiatement. Jeton signé en HMAC-SHA, durée de vie bornée à une heure                                  | Remplacer `existsByIdAndStatus` par une lecture de l'entité et construire le principal à partir du rôle en base. La requête est déjà effectuée : le coût est nul |
+| C5  | Aucune limitation de débit                | BCrypt en coût 12, supérieur au défaut. Message d'erreur uniforme entre e-mail inconnu et mot de passe erroné. Politique de mot de passe de 8 à 72 caractères imposée côté serveur                  | Limitation par adresse IP et par compte sur `/login` et `/register`, temporisation progressive, verrouillage temporaire après un nombre défini d'échecs          |
+| C4  | E-mails exposés sur les tontines `DRAFT`  | Authentification requise, aucun accès anonyme. Aucun montant dans le DTO concerné. L'accès se referme sur les seuls participants dès l'activation. Les cotisations restent filtrées par utilisateur | Retirer `userEmail` du DTO pour les non-gestionnaires, ou limiter l'exception `DRAFT` à la fiche de la tontine sans la liste nominative                          |
+| C6  | Échecs d'authentification non journalisés | Journal d'audit métier complet : vingt-deux actions tracées avec auteur, entité et horodatage. Un test d'intégration vérifie qu'aucune trace ne contient de secret                                  | Ajouter deux actions d'audit `LOGIN_SUCCESS` et `LOGIN_FAILED` avec l'adresse IP, et un `log.warn` sur chaque échec                                              |
+| C2  | Aucune révocation de session              | Cookie `HttpOnly`, non exfiltrable par XSS. Durée de vie limitée à une heure. Le changement de mot de passe exige le mot de passe actuel : un jeton volé ne permet pas de verrouiller la victime    | Ajouter une colonne `token_version` sur `users`, la porter en claim, l'incrémenter à la déconnexion et au changement de mot de passe, la comparer dans le filtre |
+| C3  | Cookie sans attribut `Secure`             | `HttpOnly` et `SameSite=Lax` appliqués systématiquement. La variable `JWT_COOKIE_SECURE` est correctement externalisée et documentée                                                                | Inverser le défaut à `true` et ne le repasser à `false` que via un profil de développement explicite                                                             |
+| C9  | Port PostgreSQL publié                    | `DB_PASSWORD` obligatoire, avec échec explicite du démarrage si absent : aucun mot de passe par défaut. Réseau bridge dédié, healthchecks sur les trois services, volume nommé                      | Retirer la section `ports` du service `postgres` ; y accéder en développement par `docker compose exec`                                                          |
+| C7  | Énumération de comptes                    | La connexion ne fuit rien : message identique dans les deux cas. Le statut du compte n'est révélé qu'après vérification du mot de passe                                                             | Réponse uniforme à l'inscription, ou à défaut limitation de débit stricte sur `/register`                                                                        |
+
+
+
 
 #### Analyse détaillée des constats majeurs
 
@@ -667,7 +730,7 @@ coût 12 est volontairement coûteux en CPU, ce qui est une bonne propriété fa
 ligne, mais devient un facteur aggravant en l'absence de limitation, des tentatives concurrentes
 pouvant contribuer à une saturation du serveur sous charge.
 
-**C4 — Adresses e-mail des participants d'une tontine `DRAFT` exposées à tout compte authentifié.**
+**C4 — Adresses e-mail des participants d'une tontine** `DRAFT` **exposées à tout compte authentifié.**
 
 ```java
 // TontineService.java:131-135
@@ -719,7 +782,7 @@ victime n'a aucun moyen de l'invalider. À noter également que `/api/auth/logou
 routes publiques : l'appel anonyme est inoffensif puisqu'il ne fait que poser un cookie, mais la
 route n'a aucune raison d'être ouverte.
 
-**C3 — Cookie sans attribut `Secure` par défaut.** La valeur par défaut est `false` à trois
+**C3 — Cookie sans attribut** `Secure` **par défaut.** La valeur par défaut est `false` à trois
 niveaux : le champ `cookieSecure` d'`AppProperties`, l'expression `${JWT_COOKIE_SECURE:false}`
 dans `application.yml`, et la valeur de repli du `docker-compose.yml`. Un déploiement qui
 omettrait de positionner la variable hériterait donc silencieusement d'un cookie transmis en
@@ -759,29 +822,35 @@ Les distinguer explicitement est utile : la Partie 6 comparera ces résultats ma
 détections automatisées, et plusieurs d'entre eux seront très probablement signalés par les
 outils.
 
-| Observation | Fichier | Nature réelle |
-|---|---|---|
-| **C8 — Protection CSRF désactivée** | `SecurityConfig.java:64-66` | **Risque résiduel, pas une faille confirmée.** Aucun scénario exploitable n'a pu être construit sur un navigateur à jour. Le cookie porte `SameSite=Lax`, qui empêche son émission sur une requête `POST`, `PATCH` ou `DELETE` inter-site. Vérification effectuée sur les 42 endpoints : aucun `@GetMapping` ne modifie l'état, il n'existe donc pas de vecteur. Le risque résiduel concerne les navigateurs anciens ignorant `SameSite`, et une éventuelle compromission d'un sous-domaine du même site |
-| **C10 — Swagger et `/v3/api-docs` publics** | `SecurityConfig.java:43-46` | Exposition de la surface d'API à un utilisateur non authentifié : les 42 routes, la structure des DTO et le nom du cookie. Aucune donnée métier n'est servie par ces routes, et `/actuator` n'expose que `health` avec `show-details: never`. C'est une aide à la reconnaissance, pas un accès. À conditionner à un profil de développement avant toute mise en production |
-| **C11 — Absence de pagination** | 8 routes de liste | Faiblesse de dimensionnement, sans conséquence à l'échelle d'une PME. Le journal d'audit, seul volume à croissance non bornée par construction, **est** paginé et plafonné à 200 éléments par page, avec bornes validées côté serveur. `open-in-view: false` évite par ailleurs les requêtes hors transaction |
-| **S2 — `backend/.dockerignore` incomplet** | `backend/.dockerignore` | **Faiblesse latente uniquement.** Le fichier n'exclut ni `.env` ni `.env.*`, mais cela reste sans effet : le `Dockerfile` du backend ne copie que `pom.xml` et `src`. Le risque n'apparaîtrait qu'en passant à un `COPY . .`. Par comparaison, le `.dockerignore` du frontend exclut bien `.env`, ce qui est nécessaire puisque son `Dockerfile` copie l'intégralité du contexte |
+
+| Observation                                     | Fichier                     | Nature réelle                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **C8 — Protection CSRF désactivée**             | `SecurityConfig.java:64-66` | **Risque résiduel, pas une faille confirmée.** Aucun scénario exploitable n'a pu être construit sur un navigateur à jour. Le cookie porte `SameSite=Lax`, qui empêche son émission sur une requête `POST`, `PATCH` ou `DELETE` inter-site. Vérification effectuée sur les 42 endpoints : aucun `@GetMapping` ne modifie l'état, il n'existe donc pas de vecteur. Le risque résiduel concerne les navigateurs anciens ignorant `SameSite`, et une éventuelle compromission d'un sous-domaine du même site |
+| **C10 — Swagger et** `/v3/api-docs` **publics** | `SecurityConfig.java:43-46` | Exposition de la surface d'API à un utilisateur non authentifié : les 42 routes, la structure des DTO et le nom du cookie. Aucune donnée métier n'est servie par ces routes, et `/actuator` n'expose que `health` avec `show-details: never`. C'est une aide à la reconnaissance, pas un accès. À conditionner à un profil de développement avant toute mise en production                                                                                                                               |
+| **C11 — Absence de pagination**                 | 8 routes de liste           | Faiblesse de dimensionnement, sans conséquence à l'échelle d'une PME. Le journal d'audit, seul volume à croissance non bornée par construction, **est** paginé et plafonné à 200 éléments par page, avec bornes validées côté serveur. `open-in-view: false` évite par ailleurs les requêtes hors transaction                                                                                                                                                                                            |
+| **S2 —** `backend/.dockerignore` **incomplet**  | `backend/.dockerignore`     | **Faiblesse latente uniquement.** Le fichier n'exclut ni `.env` ni `.env.`*, mais cela reste sans effet : le `Dockerfile` du backend ne copie que `pom.xml` et `src`. Le risque n'apparaîtrait qu'en passant à un `COPY . .`. Par comparaison, le `.dockerignore` du frontend exclut bien `.env`, ce qui est nécessaire puisque son `Dockerfile` copie l'intégralité du contexte                                                                                                                         |
+
+
+
 
 #### Contrôles vérifiés sans constat
 
 L'analyse a également cherché, sans les trouver, plusieurs classes de vulnérabilités
 fréquemment attendues sur ce type d'application. Ces résultats négatifs font partie de l'analyse.
 
-| Catégorie | Vérification effectuée | Résultat |
-|---|---|---|
-| A03 — Injection SQL | Recherche de `nativeQuery`, `createQuery`, `String.format` et de concaténation dans `repository/` | Aucune occurrence. Toutes les requêtes sont écrites en JPQL avec paramètres nommés |
-| A03 — XSS | Recherche de `dangerouslySetInnerHTML`, `innerHTML` et `eval(` dans `frontend/src` | Aucune occurrence. L'échappement React par défaut s'applique partout |
-| A10 — SSRF | Recherche de `RestTemplate`, `WebClient`, `HttpClient` et `new URL(` dans le backend | Aucun client HTTP sortant. **Catégorie non applicable** |
-| A08 — Désérialisation | Recherche de `ObjectInputStream`, `@JsonTypeInfo`, `enableDefaultTyping` | Aucune occurrence. Jackson en configuration stricte |
-| Traversée de chemin | Recherche de `MultipartFile`, `Files.write`, `new File(` | Aucune manipulation de fichier issue d'une entrée utilisateur |
-| Fuite de trace d'exécution | `include-stacktrace: never`, `include-message: never`, gestionnaire global | Message générique côté client, détail conservé côté serveur |
-| Exposition de l'empreinte de mot de passe | Inspection de tous les DTO de réponse et des mappers | `passwordHash` absent de l'ensemble des réponses ; le principal est construit avec `null` dans le filtre |
-| Conteneur privilégié | `backend/Dockerfile` | Utilisateur dédié non-root, build multi-étapes, image JRE Alpine |
-| Séparation des tâches | Trois règles vérifiées dans les services | Salaire de base, auto-ajout à une tontine et auto-acceptation d'adhésion sont effectivement bloqués côté serveur |
+
+| Catégorie                                 | Vérification effectuée                                                                            | Résultat                                                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| A03 — Injection SQL                       | Recherche de `nativeQuery`, `createQuery`, `String.format` et de concaténation dans `repository/` | Aucune occurrence. Toutes les requêtes sont écrites en JPQL avec paramètres nommés                               |
+| A03 — XSS                                 | Recherche de `dangerouslySetInnerHTML`, `innerHTML` et `eval(` dans `frontend/src`                | Aucune occurrence. L'échappement React par défaut s'applique partout                                             |
+| A10 — SSRF                                | Recherche de `RestTemplate`, `WebClient`, `HttpClient` et `new URL(` dans le backend              | Aucun client HTTP sortant. **Catégorie non applicable**                                                          |
+| A08 — Désérialisation                     | Recherche de `ObjectInputStream`, `@JsonTypeInfo`, `enableDefaultTyping`                          | Aucune occurrence. Jackson en configuration stricte                                                              |
+| Traversée de chemin                       | Recherche de `MultipartFile`, `Files.write`, `new File(`                                          | Aucune manipulation de fichier issue d'une entrée utilisateur                                                    |
+| Fuite de trace d'exécution                | `include-stacktrace: never`, `include-message: never`, gestionnaire global                        | Message générique côté client, détail conservé côté serveur                                                      |
+| Exposition de l'empreinte de mot de passe | Inspection de tous les DTO de réponse et des mappers                                              | `passwordHash` absent de l'ensemble des réponses ; le principal est construit avec `null` dans le filtre         |
+| Conteneur privilégié                      | `backend/Dockerfile`                                                                              | Utilisateur dédié non-root, build multi-étapes, image JRE Alpine                                                 |
+| Séparation des tâches                     | Trois règles vérifiées dans les services                                                          | Salaire de base, auto-ajout à une tontine et auto-acceptation d'adhésion sont effectivement bloqués côté serveur |
+
 
 Une incohérence de conception a par ailleurs été relevée sans être classée comme vulnérabilité :
 la méthode `accept()` de `JoinRequestService` interdit d'arbitrer sa propre demande, tandis que
@@ -789,6 +858,8 @@ la méthode `accept()` de `JoinRequestService` interdit d'arbitrer sa propre dem
 avantage, et une méthode dédiée permet déjà de la retirer.
 
 ---
+
+
 
 ### 3.2 Inventaire des Entrées Utilisateur
 
@@ -799,12 +870,14 @@ dérivée du JWT via le `SecurityContext`.
 
 #### Répartition des sources d'entrée
 
-| Source | Nombre d'endpoints | Validation appliquée |
-|---|---|---|
-| `@RequestBody` lié à un DTO | 12 | Bean Validation côté serveur via `@Valid`, sur chacun des 12 |
-| `@PathVariable` | 22 | Typage fort (`Long`, `YearMonth`) ; autorisation portée par la couche service |
-| `@RequestParam` | 3 | `@Min` / `@Max` sur les paramètres de pagination, activés par `@Validated` |
-| Identité issue du JWT | 42 | Jamais fournie par le client : lue dans le `SecurityContext` |
+
+| Source                      | Nombre d'endpoints | Validation appliquée                                                          |
+| --------------------------- | ------------------ | ----------------------------------------------------------------------------- |
+| `@RequestBody` lié à un DTO | 12                 | Bean Validation côté serveur via `@Valid`, sur chacun des 12                  |
+| `@PathVariable`             | 22                 | Typage fort (`Long`, `YearMonth`) ; autorisation portée par la couche service |
+| `@RequestParam`             | 3                  | `@Min` / `@Max` sur les paramètres de pagination, activés par `@Validated`    |
+| Identité issue du JWT       | 42                 | Jamais fournie par le client : lue dans le `SecurityContext`                  |
+
 
 Les douze DTO d'entrée portent tous des contraintes déclaratives, effectivement appliquées côté
 serveur : `@NotBlank`, `@NotNull`, `@Email`, `@Size`, `@Min`, `@Max`, `@Positive`,
@@ -813,74 +886,82 @@ structurée, champ par champ, par le gestionnaire d'exception global.
 
 #### Authentification et profil
 
-| Endpoint | Méthode | Entrée | Validation en place | Risque si non validée |
-|---|---|---|---|---|
-| `/api/auth/register` | POST | `RegisterRequest` | `@NotBlank`, `@Email`, `@Size` (2-120 / ≤180 / 8-72) | Création de comptes malformés, mots de passe faibles |
-| `/api/auth/login` | POST | `LoginRequest` | `@NotBlank`, `@Email` | Requêtes malformées, sondage de l'authentification |
-| `/api/auth/logout` | POST | aucune | — | Aucun |
-| `/api/auth/me` | GET | identité JWT | — | Aucun : l'identité ne vient pas du client |
-| `/api/users/me` | GET | identité JWT | — | Aucun |
-| `/api/users/me/password` | PATCH | `ChangePasswordRequest` | `@NotBlank`, `@Size` (8-72) | Contournement de la politique de mot de passe |
+
+| Endpoint                 | Méthode | Entrée                  | Validation en place                                  | Risque si non validée                                |
+| ------------------------ | ------- | ----------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| `/api/auth/register`     | POST    | `RegisterRequest`       | `@NotBlank`, `@Email`, `@Size` (2-120 / ≤180 / 8-72) | Création de comptes malformés, mots de passe faibles |
+| `/api/auth/login`        | POST    | `LoginRequest`          | `@NotBlank`, `@Email`                                | Requêtes malformées, sondage de l'authentification   |
+| `/api/auth/logout`       | POST    | aucune                  | —                                                    | Aucun                                                |
+| `/api/auth/me`           | GET     | identité JWT            | —                                                    | Aucun : l'identité ne vient pas du client            |
+| `/api/users/me`          | GET     | identité JWT            | —                                                    | Aucun                                                |
+| `/api/users/me/password` | PATCH   | `ChangePasswordRequest` | `@NotBlank`, `@Size` (8-72)                          | Contournement de la politique de mot de passe        |
+
 
 Le rôle et le salaire de base ne figurent volontairement dans aucun DTO d'inscription : ils sont
 imposés par le serveur, ce qui ferme la voie à une élévation de privilèges par *mass assignment*.
 
 #### Administration
 
-| Endpoint | Méthode | Entrée | Validation en place | Risque si non validée |
-|---|---|---|---|---|
-| `/api/admin/users` | GET | aucune | Contrôle de rôle `ADMIN` | Divulgation de l'annuaire complet |
-| `/api/admin/users/{id}/approve` | POST | `@PathVariable` + `ApproveUserRequest` | `@NotNull` sur le rôle, `@DecimalMin(0)`, `@Digits(13,2)` | Attribution d'un rôle arbitraire, salaire négatif ou hors format |
-| `/api/admin/users/{id}/reject` | POST | `@PathVariable` | Règle métier : auto-refus bloqué | Blocage de l'unique compte administrateur |
-| `/api/admin/users/{id}/role` | PATCH | `@PathVariable` + `UpdateRoleRequest` | `@NotNull` sur un type énuméré ; auto-rétrogradation bloquée | Application rendue inadministrable, élévation de privilèges |
-| `/api/admin/users/{id}/salary` | PATCH | `@PathVariable` + `UpdateSalaryRequest` | `@NotNull`, `@PositiveOrZero`, `@Digits` ; auto-attribution bloquée | Rupture de la séparation des tâches sur la paie |
-| `/api/admin/users/{id}/salaries` | GET | `@PathVariable` | Contrôle de rôle `ADMIN` | Divulgation de l'historique salarial d'autrui |
-| `/api/admin/audit-logs` | GET | `@RequestParam` `page`, `size` | `@Min(0)`, `@Min(1) @Max(200)`, activés par `@Validated` | Épuisement mémoire par une taille de page arbitraire |
+
+| Endpoint                         | Méthode | Entrée                                  | Validation en place                                                 | Risque si non validée                                            |
+| -------------------------------- | ------- | --------------------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `/api/admin/users`               | GET     | aucune                                  | Contrôle de rôle `ADMIN`                                            | Divulgation de l'annuaire complet                                |
+| `/api/admin/users/{id}/approve`  | POST    | `@PathVariable` + `ApproveUserRequest`  | `@NotNull` sur le rôle, `@DecimalMin(0)`, `@Digits(13,2)`           | Attribution d'un rôle arbitraire, salaire négatif ou hors format |
+| `/api/admin/users/{id}/reject`   | POST    | `@PathVariable`                         | Règle métier : auto-refus bloqué                                    | Blocage de l'unique compte administrateur                        |
+| `/api/admin/users/{id}/role`     | PATCH   | `@PathVariable` + `UpdateRoleRequest`   | `@NotNull` sur un type énuméré ; auto-rétrogradation bloquée        | Application rendue inadministrable, élévation de privilèges      |
+| `/api/admin/users/{id}/salary`   | PATCH   | `@PathVariable` + `UpdateSalaryRequest` | `@NotNull`, `@PositiveOrZero`, `@Digits` ; auto-attribution bloquée | Rupture de la séparation des tâches sur la paie                  |
+| `/api/admin/users/{id}/salaries` | GET     | `@PathVariable`                         | Contrôle de rôle `ADMIN`                                            | Divulgation de l'historique salarial d'autrui                    |
+| `/api/admin/audit-logs`          | GET     | `@RequestParam` `page`, `size`          | `@Min(0)`, `@Min(1) @Max(200)`, activés par `@Validated`            | Épuisement mémoire par une taille de page arbitraire             |
+
 
 Ces routes sont protégées deux fois : par la règle `requestMatchers("/api/admin/**").hasRole("ADMIN")`
 de la configuration de sécurité, et par une annotation `@PreAuthorize` au niveau de la classe.
 
 #### Tontines et adhésions
 
-| Endpoint | Méthode | Entrée | Validation en place | Risque si non validée |
-|---|---|---|---|---|
-| `/api/tontines` | GET | aucune | Filtrage serveur selon le rôle | Divulgation de tontines non concernées |
-| `/api/tontines/open` | GET | aucune | Authentification | Aucun : ouverture assumée par conception |
-| `/api/tontines/{id}` | GET | `@PathVariable` | `checkReadAccess` — **exception `DRAFT`, voir C4** | Lecture de tontines dont l'appelant n'est pas participant |
-| `/api/tontines` | POST | `CreateTontineRequest` | `@NotBlank`, `@Positive`, `@Digits`, `@Min(2)`, `@Max(60)`, `@Min(1)`, `@Max(365)` | Montants négatifs, cadences absurdes, cycles ingérables |
-| `/api/tontines/{id}` | PATCH | `@PathVariable` + `UpdateTontineRequest` | Mêmes contraintes, champs optionnels ; restreint au statut `DRAFT` | Modification d'un cycle déjà engagé |
-| `/api/tontines/{id}/members` | GET | `@PathVariable` | `checkReadAccess` — **exception `DRAFT`, voir C4** | Divulgation de la composition et des adresses e-mail |
-| `/api/tontines/{id}/members` | POST | `@PathVariable` + `AddMemberRequest` | `@NotNull`, `@Positive`, `@Min(1)` ; auto-ajout bloqué ; plafond de cotisation vérifié | Auto-inscription, prélèvement supérieur au salaire |
-| `/api/tontines/{id}/members/{userId}` | DELETE | deux `@PathVariable` | Restreint au statut `DRAFT` | Retrait d'un participant en cours de cycle |
-| `/api/tontines/{id}/members/me` | DELETE | `@PathVariable` + identité JWT | Identité serveur ; départ interdit une fois la tontine active | Départ unilatéral au détriment des autres participants |
-| `/api/tontines/{id}/activate` | POST | `@PathVariable` | Ordres de passage vérifiés comme suite complète de 1 à n | Cycle insoluble, tour sans bénéficiaire |
-| `/api/tontines/{id}/cancel` | POST | `@PathVariable` | Statut vérifié | Annulation d'une tontine déjà close |
-| `/api/tontines/{id}` | DELETE | `@PathVariable` | `DRAFT` uniquement | Effacement en cascade de l'historique salarial |
-| `/api/tontines/{id}/schedule` | GET | `@PathVariable` | `checkReadAccess` — **exception `DRAFT`** | Divulgation des bénéficiaires |
-| `/api/tontines/{id}/join-requests` | POST | `@PathVariable` + `JoinTontineRequest` | `@Size(max=300)`, corps optionnel ; demandeur issu du JWT | Demande soumise au nom d'un tiers |
-| `.../join-requests/me` | DELETE | `@PathVariable` + identité JWT | Identité serveur | Retrait de la demande d'autrui |
-| `.../join-requests` | GET | `@PathVariable` | `@PreAuthorize` + revérification dans le service | Divulgation des candidatures |
-| `/api/join-requests/pending` | GET | aucune | `@PreAuthorize` | Divulgation de la file d'arbitrage |
-| `/api/join-requests/me` | GET | identité JWT | — | Aucun |
-| `.../{requestId}/accept` | POST | deux `@PathVariable` + `JoinRequestDecision` | `@Min(1)`, `@Size(≤300)` ; cohérence demande/tontine vérifiée ; auto-acceptation bloquée | Attribution d'un ordre de passage favorable à soi-même |
-| `.../{requestId}/reject` | POST | deux `@PathVariable` + `JoinRequestDecision` | Mêmes contraintes ; cohérence vérifiée | Refus d'une demande d'une autre tontine |
+
+| Endpoint                              | Méthode | Entrée                                       | Validation en place                                                                      | Risque si non validée                                     |
+| ------------------------------------- | ------- | -------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `/api/tontines`                       | GET     | aucune                                       | Filtrage serveur selon le rôle                                                           | Divulgation de tontines non concernées                    |
+| `/api/tontines/open`                  | GET     | aucune                                       | Authentification                                                                         | Aucun : ouverture assumée par conception                  |
+| `/api/tontines/{id}`                  | GET     | `@PathVariable`                              | `checkReadAccess` — **exception** `DRAFT`**, voir C4**                                   | Lecture de tontines dont l'appelant n'est pas participant |
+| `/api/tontines`                       | POST    | `CreateTontineRequest`                       | `@NotBlank`, `@Positive`, `@Digits`, `@Min(2)`, `@Max(60)`, `@Min(1)`, `@Max(365)`       | Montants négatifs, cadences absurdes, cycles ingérables   |
+| `/api/tontines/{id}`                  | PATCH   | `@PathVariable` + `UpdateTontineRequest`     | Mêmes contraintes, champs optionnels ; restreint au statut `DRAFT`                       | Modification d'un cycle déjà engagé                       |
+| `/api/tontines/{id}/members`          | GET     | `@PathVariable`                              | `checkReadAccess` — **exception** `DRAFT`**, voir C4**                                   | Divulgation de la composition et des adresses e-mail      |
+| `/api/tontines/{id}/members`          | POST    | `@PathVariable` + `AddMemberRequest`         | `@NotNull`, `@Positive`, `@Min(1)` ; auto-ajout bloqué ; plafond de cotisation vérifié   | Auto-inscription, prélèvement supérieur au salaire        |
+| `/api/tontines/{id}/members/{userId}` | DELETE  | deux `@PathVariable`                         | Restreint au statut `DRAFT`                                                              | Retrait d'un participant en cours de cycle                |
+| `/api/tontines/{id}/members/me`       | DELETE  | `@PathVariable` + identité JWT               | Identité serveur ; départ interdit une fois la tontine active                            | Départ unilatéral au détriment des autres participants    |
+| `/api/tontines/{id}/activate`         | POST    | `@PathVariable`                              | Ordres de passage vérifiés comme suite complète de 1 à n                                 | Cycle insoluble, tour sans bénéficiaire                   |
+| `/api/tontines/{id}/cancel`           | POST    | `@PathVariable`                              | Statut vérifié                                                                           | Annulation d'une tontine déjà close                       |
+| `/api/tontines/{id}`                  | DELETE  | `@PathVariable`                              | `DRAFT` uniquement                                                                       | Effacement en cascade de l'historique salarial            |
+| `/api/tontines/{id}/schedule`         | GET     | `@PathVariable`                              | `checkReadAccess` — **exception** `DRAFT`                                                | Divulgation des bénéficiaires                             |
+| `/api/tontines/{id}/join-requests`    | POST    | `@PathVariable` + `JoinTontineRequest`       | `@Size(max=300)`, corps optionnel ; demandeur issu du JWT                                | Demande soumise au nom d'un tiers                         |
+| `.../join-requests/me`                | DELETE  | `@PathVariable` + identité JWT               | Identité serveur                                                                         | Retrait de la demande d'autrui                            |
+| `.../join-requests`                   | GET     | `@PathVariable`                              | `@PreAuthorize` + revérification dans le service                                         | Divulgation des candidatures                              |
+| `/api/join-requests/pending`          | GET     | aucune                                       | `@PreAuthorize`                                                                          | Divulgation de la file d'arbitrage                        |
+| `/api/join-requests/me`               | GET     | identité JWT                                 | —                                                                                        | Aucun                                                     |
+| `.../{requestId}/accept`              | POST    | deux `@PathVariable` + `JoinRequestDecision` | `@Min(1)`, `@Size(≤300)` ; cohérence demande/tontine vérifiée ; auto-acceptation bloquée | Attribution d'un ordre de passage favorable à soi-même    |
+| `.../{requestId}/reject`              | POST    | deux `@PathVariable` + `JoinRequestDecision` | Mêmes contraintes ; cohérence vérifiée                                                   | Refus d'une demande d'une autre tontine                   |
+
 
 La vérification de cohérence entre `tontineId` et `requestId` mérite d'être signalée : elle évite
 qu'une demande soit arbitrée depuis le contexte d'une tontine à laquelle elle n'appartient pas.
 
 #### Cotisations, salaires et tableau de bord
 
-| Endpoint | Méthode | Entrée | Validation en place | Risque si non validée |
-|---|---|---|---|---|
-| `/api/tontines/{id}/contributions/generate` | POST | `@PathVariable` + `PeriodRequest` | `@NotNull`, `@Min(1)` ; tour vérifié dans les bornes du cycle | Génération hors cycle, doublons de cotisations |
-| `/api/tontines/{id}/contributions` | GET | `@PathVariable` + `@RequestParam` `periodIndex` | Typage `Integer` ; filtrage par utilisateur pour les non-gestionnaires | Divulgation des cotisations d'autrui |
-| `/api/tontines/{id}/salaries/generate` | POST | `@PathVariable` + `PeriodRequest` | `@NotNull`, `@Min(1)` ; cotisations exigées au préalable | Salaires calculés sur des données incomplètes |
-| `/api/salaries/me` | GET | identité JWT | — | Aucun |
-| `/api/salaries/me/{month}` | GET | `@PathVariable` `YearMonth` | `@DateTimeFormat` et désérialiseur strict au format `YYYY-MM` | Format invalide traité en erreur serveur |
-| `/api/employees` | GET | aucune | `@PreAuthorize` au niveau de la classe | Divulgation de tous les salaires de base |
-| `/api/employees/{id}/salary` | PATCH | `@PathVariable` + `UpdateSalaryRequest` | `@NotNull`, `@PositiveOrZero`, `@Digits` ; auto-attribution bloquée | Rupture de la séparation des tâches |
-| `/api/employees/{id}/salaries` | GET | `@PathVariable` | `@PreAuthorize` | Divulgation de l'historique salarial |
-| `/api/dashboard` | GET | identité JWT | — | Aucun |
+
+| Endpoint                                    | Méthode | Entrée                                          | Validation en place                                                    | Risque si non validée                          |
+| ------------------------------------------- | ------- | ----------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------- |
+| `/api/tontines/{id}/contributions/generate` | POST    | `@PathVariable` + `PeriodRequest`               | `@NotNull`, `@Min(1)` ; tour vérifié dans les bornes du cycle          | Génération hors cycle, doublons de cotisations |
+| `/api/tontines/{id}/contributions`          | GET     | `@PathVariable` + `@RequestParam` `periodIndex` | Typage `Integer` ; filtrage par utilisateur pour les non-gestionnaires | Divulgation des cotisations d'autrui           |
+| `/api/tontines/{id}/salaries/generate`      | POST    | `@PathVariable` + `PeriodRequest`               | `@NotNull`, `@Min(1)` ; cotisations exigées au préalable               | Salaires calculés sur des données incomplètes  |
+| `/api/salaries/me`                          | GET     | identité JWT                                    | —                                                                      | Aucun                                          |
+| `/api/salaries/me/{month}`                  | GET     | `@PathVariable` `YearMonth`                     | `@DateTimeFormat` et désérialiseur strict au format `YYYY-MM`          | Format invalide traité en erreur serveur       |
+| `/api/employees`                            | GET     | aucune                                          | `@PreAuthorize` au niveau de la classe                                 | Divulgation de tous les salaires de base       |
+| `/api/employees/{id}/salary`                | PATCH   | `@PathVariable` + `UpdateSalaryRequest`         | `@NotNull`, `@PositiveOrZero`, `@Digits` ; auto-attribution bloquée    | Rupture de la séparation des tâches            |
+| `/api/employees/{id}/salaries`              | GET     | `@PathVariable`                                 | `@PreAuthorize`                                                        | Divulgation de l'historique salarial           |
+| `/api/dashboard`                            | GET     | identité JWT                                    | —                                                                      | Aucun                                          |
+
 
 Un point de conception est déterminant pour la sécurité du calcul : **aucun montant financier
 n'est jamais accepté du client**. La cotisation provient toujours de la tontine, la cagnotte est
@@ -901,6 +982,8 @@ lecture volontairement accordée à un statut, dont le périmètre est trop larg
 
 ---
 
+
+
 ### 3.3 Gestion des Secrets
 
 L'inspection a porté sur `application.yml`, `docker-compose.yml`, les deux `Dockerfile`, les
@@ -908,22 +991,24 @@ fichiers `.dockerignore`, `.env.example`, `.gitignore`, ainsi que sur l'usage ef
 `JWT_SECRET` et des variables PostgreSQL dans le code. Une recherche de secrets codés en dur a
 été menée sur les fichiers Java, TypeScript, YAML, JSON, SQL et Markdown du dépôt.
 
-**Aucune valeur de secret n'est reproduite dans ce rapport, et le fichier `.env` réel n'y figure
+**Aucune valeur de secret n'est reproduite dans ce rapport, et le fichier** `.env` **réel n'y figure
 sous aucune forme.**
 
 #### Ce qui est correctement externalisé
 
-| Élément | Emplacement | Constat |
-|---|---|---|
-| `JWT_SECRET` | `application.yml:39`, `JwtService.java:32-41` | Aucune valeur par défaut. L'application **refuse de démarrer** si le secret est absent ou fait moins de 32 caractères. Ce choix de défaillance immédiate est la bonne décision : il rend impossible un démarrage avec une clé faible |
-| `DB_PASSWORD` | `application.yml:8`, `docker-compose.yml:14` et `:40` | Aucun mot de passe par défaut. La syntaxe `${DB_PASSWORD:?...}` provoque un échec explicite de `docker compose` si la variable est absente |
-| `APP_ADMIN_PASSWORD` | `AdminBootstrap.java:48-56` | L'amorçage du compte administrateur est ignoré si le mot de passe est absent ou fait moins de 12 caractères. Le mot de passe n'est **jamais journalisé** : seule l'adresse e-mail l'est |
-| `APP_SEED_PASSWORD` | `DemoDataSeeder.java:76-81` | Le jeu de démonstration est conditionné à `APP_SEED_ENABLED=true`, désactivé par défaut. Le mot de passe provient de l'environnement, avec une longueur minimale contrôlée |
-| Variables PostgreSQL | `application.yml:6-8` | Hôte, port, base, utilisateur et mot de passe entièrement paramétrés par l'environnement |
-| `.env` | `.gitignore:1-5` | Ignoré par les motifs `.env`, `.env.local` et `*.env`. **Vérifié** : `git check-ignore` confirme l'exclusion de `.env` et de `frontend/.env` ; `git ls-files` ne retourne aucun fichier `.env` parmi les fichiers suivis |
-| `.env.example` | `.env.example` | Dix-neuf variables, **toutes vides**. Les commentaires décrivent ce qu'attend chaque variable, y compris les commandes de génération, sans jamais fournir de valeur d'exemple |
-| Journal d'audit | `AuditService.java`, test d'intégration dédié | Le champ de détail ne contient que des informations métier. Un test automatisé vérifie qu'aucune trace ne contient de secret |
-| Configuration applicative | `AppProperties.java` | L'ensemble de la configuration sensible transite par une classe de propriétés typée et validée, alimentée exclusivement par l'environnement |
+
+| Élément                   | Emplacement                                           | Constat                                                                                                                                                                                                                              |
+| ------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `JWT_SECRET`              | `application.yml:39`, `JwtService.java:32-41`         | Aucune valeur par défaut. L'application **refuse de démarrer** si le secret est absent ou fait moins de 32 caractères. Ce choix de défaillance immédiate est la bonne décision : il rend impossible un démarrage avec une clé faible |
+| `DB_PASSWORD`             | `application.yml:8`, `docker-compose.yml:14` et `:40` | Aucun mot de passe par défaut. La syntaxe `${DB_PASSWORD:?...}` provoque un échec explicite de `docker compose` si la variable est absente                                                                                           |
+| `APP_ADMIN_PASSWORD`      | `AdminBootstrap.java:48-56`                           | L'amorçage du compte administrateur est ignoré si le mot de passe est absent ou fait moins de 12 caractères. Le mot de passe n'est **jamais journalisé** : seule l'adresse e-mail l'est                                              |
+| `APP_SEED_PASSWORD`       | `DemoDataSeeder.java:76-81`                           | Le jeu de démonstration est conditionné à `APP_SEED_ENABLED=true`, désactivé par défaut. Le mot de passe provient de l'environnement, avec une longueur minimale contrôlée                                                           |
+| Variables PostgreSQL      | `application.yml:6-8`                                 | Hôte, port, base, utilisateur et mot de passe entièrement paramétrés par l'environnement                                                                                                                                             |
+| `.env`                    | `.gitignore:1-5`                                      | Ignoré par les motifs `.env`, `.env.local` et `*.env`. **Vérifié** : `git check-ignore` confirme l'exclusion de `.env` et de `frontend/.env` ; `git ls-files` ne retourne aucun fichier `.env` parmi les fichiers suivis             |
+| `.env.example`            | `.env.example`                                        | Dix-neuf variables, **toutes vides**. Les commentaires décrivent ce qu'attend chaque variable, y compris les commandes de génération, sans jamais fournir de valeur d'exemple                                                        |
+| Journal d'audit           | `AuditService.java`, test d'intégration dédié         | Le champ de détail ne contient que des informations métier. Un test automatisé vérifie qu'aucune trace ne contient de secret                                                                                                         |
+| Configuration applicative | `AppProperties.java`                                  | L'ensemble de la configuration sensible transite par une classe de propriétés typée et validée, alimentée exclusivement par l'environnement                                                                                          |
+
 
 **Recherche de secrets codés en dur.** Les seules correspondances retournées sont des littéraux
 de test — mots de passe fictifs des tests d'intégration, clé de signature propre au contexte de
@@ -933,13 +1018,15 @@ de vue.
 
 #### Améliorations recommandées
 
-| Point | Emplacement | Nature | Priorité |
-|---|---|---|---|
-| `JWT_COOKIE_SECURE` par défaut à `false` | `AppProperties.java:115`, `application.yml:42`, `docker-compose.yml:43` | Défaut qui n'est pas sûr, répliqué à trois niveaux. Correspond au constat **C3** : Medium dans le contexte actuel, mais deviendrait critique sur un environnement accessible sans HTTPS | Élevée |
-| Port PostgreSQL publié sur l'hôte | `docker-compose.yml:17-18` | Correspond au constat **C9**. Le backend n'en a pas besoin : il joint la base par le réseau interne | Moyenne |
-| `baseline-on-migrate: true` | `application.yml:25` | Relève de l'intégrité (A08). Sur une base non vide dépourvue de table d'historique, Flyway pose une ligne de base et **saute silencieusement la première migration** : le schéma peut alors diverger sans qu'aucune erreur ne soit levée | Moyenne |
-| `backend/.dockerignore` incomplet | `backend/.dockerignore` | **Amélioration préventive uniquement.** Le fichier n'exclut ni `.env` ni `.env.*`, mais le `Dockerfile` ne copie que `pom.xml` et `src` : aucun secret ne peut aujourd'hui entrer dans l'image. Ajouter la règle protège d'une évolution ultérieure vers un `COPY . .` | Faible |
-| Absence de limites de ressources | `docker-compose.yml` | Aucune section `deploy.resources` : un conteneur emballé peut épuiser les ressources de l'hôte | Faible |
+
+| Point                                    | Emplacement                                                             | Nature                                                                                                                                                                                                                                                                 | Priorité |
+| ---------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `JWT_COOKIE_SECURE` par défaut à `false` | `AppProperties.java:115`, `application.yml:42`, `docker-compose.yml:43` | Défaut qui n'est pas sûr, répliqué à trois niveaux. Correspond au constat **C3** : Medium dans le contexte actuel, mais deviendrait critique sur un environnement accessible sans HTTPS                                                                                | Élevée   |
+| Port PostgreSQL publié sur l'hôte        | `docker-compose.yml:17-18`                                              | Correspond au constat **C9**. Le backend n'en a pas besoin : il joint la base par le réseau interne                                                                                                                                                                    | Moyenne  |
+| `baseline-on-migrate: true`              | `application.yml:25`                                                    | Relève de l'intégrité (A08). Sur une base non vide dépourvue de table d'historique, Flyway pose une ligne de base et **saute silencieusement la première migration** : le schéma peut alors diverger sans qu'aucune erreur ne soit levée                               | Moyenne  |
+| `backend/.dockerignore` incomplet        | `backend/.dockerignore`                                                 | **Amélioration préventive uniquement.** Le fichier n'exclut ni `.env` ni `.env.`*, mais le `Dockerfile` ne copie que `pom.xml` et `src` : aucun secret ne peut aujourd'hui entrer dans l'image. Ajouter la règle protège d'une évolution ultérieure vers un `COPY . .` | Faible   |
+| Absence de limites de ressources         | `docker-compose.yml`                                                    | Aucune section `deploy.resources` : un conteneur emballé peut épuiser les ressources de l'hôte                                                                                                                                                                         | Faible   |
+
 
 Un point de vigilance opérationnel, extérieur au code, mérite d'être noté : le fichier `.env`
 réel existe sur la machine de développement et contient les valeurs effectives. Il est
@@ -947,6 +1034,8 @@ correctement ignoré par Git et n'a jamais été versionné, mais il ne doit acc
 ni l'archive de rendu.
 
 ---
+
+
 
 ### Conclusion de la Partie 3
 
@@ -976,7 +1065,11 @@ failles à tout prix, mais d'évaluer honnêtement la posture de sécurité de l
 
 ---
 
+
+
 ## 4. Règles Semgrep Custom
+
+
 
 ### 4.1 Objectif et stratégie
 
@@ -1001,14 +1094,16 @@ n'a été utilisé à cette étape** : les registres `p/owasp-top-ten`, `p/nodej
 introduits dans la pipeline en Partie 5, précisément pour que la comparaison entre règles écrites
 sur mesure et règles génériques reste lisible.
 
-| ID | Règle | Langage | OWASP / CWE | Sévérité | Finding actuel |
-|---|---|---|---|---|---|
-| R1 | `salarytontine-sql-jpql-injection` | Java | A03:2021 / CWE-89 | ERROR | **0** |
-| R2 | `salarytontine-command-injection` | Java | A03:2021 / CWE-78 | ERROR | **0** |
-| R3 | `salarytontine-hardcoded-secret` | Java | A07:2021 / CWE-798 | ERROR | **0** |
-| R4 | `salarytontine-insecure-auth-cookie` | Java | A02:2021 / CWE-614 | WARNING | **1** |
-| R5 | `salarytontine-spring-csrf-disabled` | Java | A01:2021 / CWE-352 | WARNING | **1** |
-| R6 | `salarytontine-react-dangerously-set-inner-html` | TypeScript / JavaScript | A03:2021 / CWE-79 | ERROR | **0** |
+
+| ID  | Règle                                            | Langage                 | OWASP / CWE        | Sévérité | Finding actuel |
+| --- | ------------------------------------------------ | ----------------------- | ------------------ | -------- | -------------- |
+| R1  | `salarytontine-sql-jpql-injection`               | Java                    | A03:2021 / CWE-89  | ERROR    | **0**          |
+| R2  | `salarytontine-command-injection`                | Java                    | A03:2021 / CWE-78  | ERROR    | **0**          |
+| R3  | `salarytontine-hardcoded-secret`                 | Java                    | A07:2021 / CWE-798 | ERROR    | **0**          |
+| R4  | `salarytontine-insecure-auth-cookie`             | Java                    | A02:2021 / CWE-614 | WARNING  | **1**          |
+| R5  | `salarytontine-spring-csrf-disabled`             | Java                    | A01:2021 / CWE-352 | WARNING  | **1**          |
+| R6  | `salarytontine-react-dangerously-set-inner-html` | TypeScript / JavaScript | A03:2021 / CWE-79  | ERROR    | **0**          |
+
 
 Quatre règles sur six ne remontent aucun finding. **Ce n'est pas un défaut de conception, et ce
 n'est pas non plus la preuve que le pattern visé existe dans le code.** Ces quatre règles sont
@@ -1018,7 +1113,11 @@ effectif de ces règles a été vérifié en dehors du dépôt.
 
 ---
 
+
+
 ### 4.2 Règles personnalisées
+
+
 
 #### R1 — Injection SQL / JPQL
 
@@ -1089,8 +1188,7 @@ effectif de ces règles a été vérifié en dehors du dépôt.
 assemblée dynamiquement. La règle ne se contente pas de repérer l'appel : elle exige, par
 `metavariable-pattern`, que l'argument `$QUERY` soit lui-même une concaténation (`$A + $B`), un
 `String.format`, un `concat`, un `formatted`, un `StringBuilder.toString()` ou un `String.join`.
-Un exemple typique serait `em.createQuery("select s from SalaryRecord s where s.tontine.id = " +
-tontineId)`.
+Un exemple typique serait `em.createQuery("select s from SalaryRecord s where s.tontine.id = " + tontineId)`.
 
 **Pertinence pour SalaryTontine.** Les tables `salary_records`, `contributions` et `users`
 contiennent l'intégralité des données de paie simulées. Une injection sur l'une d'elles
@@ -1112,6 +1210,8 @@ empêcher son introduction future**, notamment lors de l'ajout d'une requête JP
 `JdbcTemplate` pour un besoin de reporting.
 
 ---
+
+
 
 #### R2 — Injection de commande système
 
@@ -1169,8 +1269,7 @@ d'application ; c'est précisément là qu'une de ces chaînes se retrouverait i
 commande shell. Le backend s'exécutant dans un conteneur, une injection donnerait l'exécution de
 code sur ce conteneur.
 
-**Correctif suggéré.** Passer les arguments sous forme de liste — `new ProcessBuilder("tar",
-"czf", fichier)` — de sorte qu'aucune interprétation shell n'ait lieu, et valider chaque valeur
+**Correctif suggéré.** Passer les arguments sous forme de liste — `new ProcessBuilder("tar", "czf", fichier)` — de sorte qu'aucune interprétation shell n'ait lieu, et valider chaque valeur
 entrante contre une liste blanche.
 
 **Résultat actuel : 0 finding.** Une recherche manuelle de `Runtime.getRuntime`, `ProcessBuilder`,
@@ -1180,6 +1279,8 @@ exécution de commande système n'est présente dans l'application.
 empêcher son introduction future.**
 
 ---
+
+
 
 #### R3 — Secret codé en dur
 
@@ -1267,6 +1368,8 @@ contre une introduction future.**
 
 ---
 
+
+
 #### R4 — Cookie d'authentification sans attribut Secure
 
 ```yaml
@@ -1338,6 +1441,8 @@ défaut — l'oubli d'une variable d'environnement suffirait à créer la vulné
 
 ---
 
+
+
 #### R5 — Protection CSRF désactivée dans Spring Security
 
 ```yaml
@@ -1403,7 +1508,7 @@ comme une vulnérabilité exploitable certaine**. L'analyse manuelle, menée ava
 avait établi deux faits que Semgrep ne peut pas connaître. D'une part, le cookie porte
 `SameSite=Lax`, qui empêche le navigateur de l'émettre sur une requête `POST`, `PATCH` ou
 `DELETE` inter-site. D'autre part — et c'est le point décisif — la vérification des quarante-deux
-endpoints de l'API a montré qu'**aucune route `GET` ne modifie l'état** : toutes les mutations
+endpoints de l'API a montré qu'**aucune route** `GET` **ne modifie l'état** : toutes les mutations
 passent par `POST`, `PATCH` ou `DELETE`. Or `Lax` n'émet le cookie que sur une navigation de
 premier niveau en `GET`. Il n'existe donc pas de vecteur exploitable sur un navigateur à jour.
 
@@ -1421,6 +1526,8 @@ de compromission d'un sous-domaine du même site, `SameSite` ne distinguant pas 
 sein d'un même domaine enregistré.
 
 ---
+
+
 
 #### R6 — XSS React via `dangerouslySetInnerHTML`
 
@@ -1483,6 +1590,8 @@ empêcher l'introduction future d'un rendu HTML non maîtrisé.**
 
 ---
 
+
+
 ### 4.3 Utilisation de `pattern-not` et de `metavariable-regex`
 
 Les deux constructions exigées par le sujet sont présentes, et surtout elles font un travail réel :
@@ -1490,7 +1599,7 @@ elles ne sont pas ajoutées pour satisfaire formellement la consigne. Le fichier
 occurrences de `pattern-not`, une de `pattern-not-regex` et trois de `metavariable-regex`. Trois
 exemples représentatifs suffisent à en montrer l'utilité.
 
-**Premier exemple — `pattern-not` dans R1 : écarter les requêtes correctement paramétrées.**
+**Premier exemple —** `pattern-not` **dans R1 : écarter les requêtes correctement paramétrées.**
 
 ```yaml
 - pattern-not: $EM.createQuery("...", ...)
@@ -1504,7 +1613,7 @@ signalées. La règle ne conserve que les requêtes réellement assemblées à l
 exclusion qui rend le résultat « 0 finding » significatif : il signifie « aucune requête
 dangereuse », et non « la règle ne sait pas distinguer ».
 
-**Deuxième exemple — `pattern-not` dans R5 : distinguer désactivation globale et exemption ciblée.**
+**Deuxième exemple —** `pattern-not` **dans R5 : distinguer désactivation globale et exemption ciblée.**
 
 ```yaml
 - pattern-not: $HTTP.csrf($C -> $C.ignoringRequestMatchers(...))
@@ -1516,7 +1625,7 @@ Sans ce `pattern-not`, la règle confondrait les deux et perdrait sa précision.
 compte d'autant plus ici que R5 produit un finding réel : il faut que ce finding désigne
 exactement le bon défaut.
 
-**Troisième exemple — `metavariable-regex` dans R3 : cibler le nom, puis la valeur.**
+**Troisième exemple —** `metavariable-regex` **dans R3 : cibler le nom, puis la valeur.**
 
 ```yaml
 - metavariable-regex:
@@ -1549,7 +1658,7 @@ donc pas, et l'exclusion doit passer par une expression régulière. Une déclar
 `private String secret = "${JWT_SECRET}";`, qui est exactement la bonne pratique, n'est ainsi
 jamais signalée.
 
-**Quatrième exemple — `metavariable-regex` dans R4 : cibler un drapeau contenant `secure`.**
+**Quatrième exemple —** `metavariable-regex` **dans R4 : cibler un drapeau contenant** `secure`**.**
 
 ```yaml
 - patterns:
@@ -1568,6 +1677,8 @@ attribut de sécurité. Le banc de test décrit en 4.4 vérifie précisément ce
 
 ---
 
+
+
 ### 4.4 Validation et résultats
 
 **Validation de la configuration.**
@@ -1584,20 +1695,24 @@ sans aucun ruleset distant :
 $ semgrep scan --config .semgrep/rules.yaml backend/src/main/java frontend/src
 ```
 
-| Indicateur | Valeur |
-|---|---|
-| Fichiers analysés | 154 |
-| Erreurs d'analyse | 0 |
-| Findings | **2** |
 
-| Règle | Findings | Localisation |
-|---|---|---|
-| R1 — Injection SQL / JPQL | 0 | — |
-| R2 — Injection de commande | 0 | — |
-| R3 — Secret codé en dur | 0 | — |
-| **R4 — Cookie non Secure** | **1** | `AppProperties.java:115` — `private boolean cookieSecure = false;` |
-| **R5 — CSRF désactivée** | **1** | `SecurityConfig.java:63` — `.csrf(AbstractHttpConfigurer::disable)` |
-| R6 — XSS React | 0 | — |
+| Indicateur        | Valeur |
+| ----------------- | ------ |
+| Fichiers analysés | 154    |
+| Erreurs d'analyse | 0      |
+| Findings          | **2**  |
+
+
+
+| Règle                      | Findings | Localisation                                                        |
+| -------------------------- | -------- | ------------------------------------------------------------------- |
+| R1 — Injection SQL / JPQL  | 0        | —                                                                   |
+| R2 — Injection de commande | 0        | —                                                                   |
+| R3 — Secret codé en dur    | 0        | —                                                                   |
+| **R4 — Cookie non Secure** | **1**    | `AppProperties.java:115` — `private boolean cookieSecure = false;`  |
+| **R5 — CSRF désactivée**   | **1**    | `SecurityConfig.java:63` — `.csrf(AbstractHttpConfigurer::disable)` |
+| R6 — XSS React             | 0        | —                                                                   |
+
 
 Les deux findings correspondent respectivement aux constats **C3** et **C8** de l'analyse manuelle
 de la Partie 3. Cette convergence sera exploitée dans la comparaison manuel / automatisé de la
@@ -1611,21 +1726,24 @@ règle inopérante.
 Les six règles ont donc été éprouvées sur un jeu de cas construit **en dehors du dépôt**, dans un
 répertoire temporaire : **ces fichiers de test ne font pas partie du repository et ne sont pas
 versionnés**. Ce jeu contient, pour chaque règle, des cas positifs qui doivent être signalés et
-des cas négatifs qui ne doivent pas l'être — requête paramétrée, `ProcessBuilder("tar", "czf",
-fichier)` sous forme de liste, chaîne vide, valeur nulle, placeholder `"${JWT_SECRET}"`, chaîne
+des cas négatifs qui ne doivent pas l'être — requête paramétrée, `ProcessBuilder("tar", "czf", fichier)` sous forme de liste, chaîne vide, valeur nulle, placeholder `"${JWT_SECRET}"`, chaîne
 trop courte, drapeau booléen au nom anodin, exemption CSRF ciblée, contenu passé par
 `DOMPurify.sanitize`, et rendu par nœud texte.
 
-| Résultat attendu | Résultat obtenu |
-|---|---|
-| 16 findings | **16 findings** |
-| 0 faux positif | **0 faux positif** |
+
+| Résultat attendu | Résultat obtenu    |
+| ---------------- | ------------------ |
+| 16 findings      | **16 findings**    |
+| 0 faux positif   | **0 faux positif** |
+
 
 Les six règles se déclenchent correctement sur les cas positifs, et l'ensemble des cas sûrs est
 écarté. Les quatre règles sans finding sur le projet sont donc bien opérationnelles : leur silence
 traduit l'absence du motif visé dans le code de SalaryTontine.
 
 ---
+
+
 
 ### 4.5 Gestion des faux positifs
 
@@ -1686,6 +1804,8 @@ légitimes de R4 et R5.
 
 ---
 
+
+
 ### Conclusion de la Partie 4
 
 Les six règles personnalisées satisfont l'ensemble des contraintes de l'examen : six règles pour
@@ -1714,7 +1834,11 @@ Partie 7.
 
 ---
 
+
+
 ## 5. Pipeline DevSecOps
+
+
 
 ### 5.1 Architecture de la Pipeline
 
@@ -1731,13 +1855,17 @@ sca ──────┘                            │
    └──┴──┴─────────────────────────────┴──► summary  (if: always())
 ```
 
-| Job | Rôle | Outils | Dépendances |
-|---|---|---|---|
-| `gitleaks` | Détection de secrets | GitLeaks | aucune |
-| `sast` | Analyse statique du code | Semgrep | aucune |
-| `sca` | Analyse des dépendances | Snyk, Trivy filesystem | aucune |
+
+| Job                     | Rôle                               | Outils                     | Dépendances               |
+| ----------------------- | ---------------------------------- | -------------------------- | ------------------------- |
+| `gitleaks`              | Détection de secrets               | GitLeaks                   | aucune                    |
+| `sast`                  | Analyse statique du code           | Semgrep                    | aucune                    |
+| `sca`                   | Analyse des dépendances            | Snyk, Trivy filesystem     | aucune                    |
 | `docker-build-and-scan` | Construction et analyse des images | Docker Buildx, Trivy image | `gitleaks`, `sast`, `sca` |
-| `summary` | Récapitulatif dans GitHub Summary | — | les quatre précédents |
+| `summary`               | Récapitulatif dans GitHub Summary  | —                          | les quatre précédents     |
+
+
+
 
 #### Le security gate
 
@@ -1895,15 +2023,17 @@ Deux rapports distincts sont produits, `trivy-backend-image.sarif` et
 Sept rapports sont produits et publiés via `github/codeql-action/upload-sarif@v4`, chacun sous
 une catégorie propre afin d'éviter toute collision dans Code Scanning :
 
-| Fichier SARIF | Catégorie | Job |
-|---|---|---|
-| `results.sarif` | `gitleaks` | `gitleaks` |
-| `semgrep.sarif` | `semgrep` | `sast` |
-| `snyk-backend.sarif` | `snyk-backend` | `sca` |
-| `snyk-frontend.sarif` | `snyk-frontend` | `sca` |
-| `trivy-fs.sarif` | `trivy-fs` | `sca` |
-| `trivy-backend-image.sarif` | `trivy-backend-image` | `docker-build-and-scan` |
+
+| Fichier SARIF                | Catégorie              | Job                     |
+| ---------------------------- | ---------------------- | ----------------------- |
+| `results.sarif`              | `gitleaks`             | `gitleaks`              |
+| `semgrep.sarif`              | `semgrep`              | `sast`                  |
+| `snyk-backend.sarif`         | `snyk-backend`         | `sca`                   |
+| `snyk-frontend.sarif`        | `snyk-frontend`        | `sca`                   |
+| `trivy-fs.sarif`             | `trivy-fs`             | `sca`                   |
+| `trivy-backend-image.sarif`  | `trivy-backend-image`  | `docker-build-and-scan` |
 | `trivy-frontend-image.sarif` | `trivy-frontend-image` | `docker-build-and-scan` |
+
 
 Les sept uploads portent `if: always()`, doublé d'un test d'existence du fichier. La conséquence
 est importante : **un scan qui échoue publie quand même son rapport**. Sans cette précaution, le
@@ -1930,7 +2060,11 @@ explicite le rappelle sous le tableau. Aucune valeur sensible n'y figure.
 
 ---
 
+
+
 ### 5.2 Réponses aux Questions Q5.1, Q5.2, Q5.3
+
+
 
 #### Q5.1 — Quel scanner est bloquant, et pourquoi ?
 
@@ -1951,8 +2085,7 @@ arrêterait presque toute application réelle et conduirait à désactiver le ga
 
 **Lien avec le premier run.** Le mécanisme n'est pas resté théorique. Lors de l'exécution
 `DevSecOps #1` sur `develop`, Trivy a détecté **six vulnérabilités CRITICAL corrigeables** dans
-`backend/pom.xml`. L'étape bloquante s'est terminée sur `Error: Process completed with exit code
-1`, le job `sca` est passé en échec, et le job `docker-build-and-scan` **n'a jamais démarré** :
+`backend/pom.xml`. L'étape bloquante s'est terminée sur `Error: Process completed with exit code 1`, le job `sca` est passé en échec, et le job `docker-build-and-scan` **n'a jamais démarré** :
 GitHub l'a marqué `skipped`, durée `0s`. Aucune image n'a été construite, aucune image n'a été
 analysée. Le security gate a fonctionné exactement comme prévu.
 
@@ -1961,23 +2094,22 @@ analysée. Le security gate a fonctionné exactement comme prévu.
 Le déroulement serait le suivant, étape par étape.
 
 1. **Le développeur committe et pousse** la clé sur `main`, `develop` ou dans une pull request.
-   Le workflow se déclenche : ces trois cas sont couverts par les déclencheurs.
-2. **Le job `gitleaks` récupère le dépôt avec `fetch-depth: 0`.** L'historique complet est
-   présent, pas seulement le dernier commit.
+  Le workflow se déclenche : ces trois cas sont couverts par les déclencheurs.
+2. **Le job** `gitleaks` **récupère le dépôt avec** `fetch-depth: 0`**.** L'historique complet est
+  présent, pas seulement le dernier commit.
 3. **GitLeaks analyse l'arbre de travail et l'historique.** La clé est détectée même si elle a
-   été retirée par un commit ultérieur : c'est tout l'intérêt du checkout complet, puisqu'un
+  été retirée par un commit ultérieur : c'est tout l'intérêt du checkout complet, puisqu'un
    secret resté dans l'historique demeure exploitable par quiconque clone le dépôt.
 4. **Le rapport SARIF est publié** dans Code Scanning sous la catégorie `gitleaks`. L'upload
-   porte `if: always()` : il a lieu avant que le job ne décide de son sort. L'emplacement de la
+  porte `if: always()` : il a lieu avant que le job ne décide de son sort. L'emplacement de la
    fuite — fichier, ligne, commit — est reporté, jamais la valeur du secret.
-5. **Le job `gitleaks` échoue.** L'étape de détection porte `continue-on-error: true` pour laisser
-   le rapport remonter, puis une étape conditionnée à `steps.gitleaks.outcome == 'failure'`
+5. **Le job** `gitleaks` **échoue.** L'étape de détection porte `continue-on-error: true` pour laisser
+  le rapport remonter, puis une étape conditionnée à `steps.gitleaks.outcome == 'failure'`
    réapplique l'échec avec un message d'erreur annoté.
 6. **Le build Docker est bloqué.** `docker-build-and-scan` déclare `needs: [gitleaks, sast, sca]` :
-   il passe en `skipped` sans exécuter la moindre étape. Aucune image ne contient donc la clé.
+  il passe en `skipped` sans exécuter la moindre étape. Aucune image ne contient donc la clé.
 7. **Le récapitulatif reste produit.** Le job `summary` porte `if: always()` : il s'exécute et
-   affiche `Secrets | GitLeaks | ❌ Échec` ainsi que `Build | Docker | 🚫 Non exécuté (gate amont
-   en échec)`, puis fait échouer le pipeline global.
+  affiche `Secrets | GitLeaks | ❌ Échec` ainsi que `Build | Docker | 🚫 Non exécuté (gate amont  en échec)`, puis fait échouer le pipeline global.
 
 **Ce scénario n'a pas eu lieu.** Le premier run réel affiche `No leaks detected` et le job
 `gitleaks` s'est terminé en succès en 16 secondes. La description ci-dessus est le comportement
@@ -2003,14 +2135,16 @@ d'implémentation, qui peut se reproduire dans n'importe quel logiciel.
 Le rapport entre les deux est celui de l'instance à la classe : une CVE est l'occurrence
 particulière d'une CWE dans un produit précis.
 
-| | CVE | CWE |
-|---|---|---|
-| Nature | Vulnérabilité concrète | Catégorie de faiblesse |
-| Portée | Un produit, une version | Tout logiciel |
+
+|                        | CVE                                                                                                                                                        | CWE                                                                                          |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Nature                 | Vulnérabilité concrète                                                                                                                                     | Catégorie de faiblesse                                                                       |
+| Portée                 | Un produit, une version                                                                                                                                    | Tout logiciel                                                                                |
 | Exemple dans ce projet | `CVE-2025-41232` — Spring Security 6.4.2, contournement d'autorisation sur les annotations de sécurité appliquées à des méthodes privées, corrigé en 6.4.6 | `CWE-352` — Cross-Site Request Forgery, catégorie du constat C8 sur la désactivation de CSRF |
-| Autre exemple | `CVE-2025-24813` — Tomcat 10.1.34, RCE potentielle via PUT partiel, corrigé en 10.1.35 | `CWE-614` — cookie sensible sans attribut `Secure`, catégorie du constat C3 |
-| Qui les produit | Éditeurs, chercheurs, MITRE | MITRE |
-| Qui les détecte ici | Snyk et Trivy, par comparaison à une base de vulnérabilités | Semgrep et l'analyse manuelle, par reconnaissance de motifs |
+| Autre exemple          | `CVE-2025-24813` — Tomcat 10.1.34, RCE potentielle via PUT partiel, corrigé en 10.1.35                                                                     | `CWE-614` — cookie sensible sans attribut `Secure`, catégorie du constat C3                  |
+| Qui les produit        | Éditeurs, chercheurs, MITRE                                                                                                                                | MITRE                                                                                        |
+| Qui les détecte ici    | Snyk et Trivy, par comparaison à une base de vulnérabilités                                                                                                | Semgrep et l'analyse manuelle, par reconnaissance de motifs                                  |
+
 
 Cette distinction structure d'ailleurs la pipeline. Les constats de la Partie 3 et les règles de
 la Partie 4 sont exprimés en CWE : la désactivation de CSRF n'est pas une CVE, c'est une décision
@@ -2020,7 +2154,11 @@ de version. Deux natures de problème, deux familles d'outils, deux modes de rem
 
 ---
 
+
+
 ## 6. Résultats
+
+
 
 ### 6.1 Résultats du premier run
 
@@ -2032,50 +2170,51 @@ Le premier passage de la pipeline a eu lieu sur la branche `develop`, au commit
 dysfonctionnement : le security gate a bloqué la chaîne sur des vulnérabilités CRITICAL
 réellement présentes dans les dépendances du backend.
 
-| Contrôle | Outil | Résultat | Observation |
-|---|---|---|---|
-| Secrets | GitLeaks | **SUCCESS** (16 s) | `No leaks detected` — aucun secret dans le dépôt ni dans son historique |
-| SAST | Semgrep | **SUCCESS** (35 s) | Analyse terminée, rapport SARIF de 108 Ko publié |
-| SCA | Snyk + Trivy FS | **FAILURE** (1 min 32 s) | 6 vulnérabilités CRITICAL corrigeables dans `backend/pom.xml` ; le contrôle bloquant se termine sur `exit code 1` |
-| Build | Docker | **SKIPPED** (0 s) | Gate `sca` non validé : `needs` empêche le démarrage du job |
-| Container Scan | Trivy Image | **SKIPPED** | Exécuté dans le même job que le build, donc non atteint |
-| Récapitulatif | — | **FAILURE** (3 s) | Reflète l'échec global par propagation ; le tableau reste produit grâce à `if: always()` |
+
+| Contrôle       | Outil           | Résultat                 | Observation                                                                                                       |
+| -------------- | --------------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| Secrets        | GitLeaks        | **SUCCESS** (16 s)       | `No leaks detected` — aucun secret dans le dépôt ni dans son historique                                           |
+| SAST           | Semgrep         | **SUCCESS** (35 s)       | Analyse terminée, rapport SARIF de 108 Ko publié                                                                  |
+| SCA            | Snyk + Trivy FS | **FAILURE** (1 min 32 s) | 6 vulnérabilités CRITICAL corrigeables dans `backend/pom.xml` ; le contrôle bloquant se termine sur `exit code 1` |
+| Build          | Docker          | **SKIPPED** (0 s)        | Gate `sca` non validé : `needs` empêche le démarrage du job                                                       |
+| Container Scan | Trivy Image     | **SKIPPED**              | Exécuté dans le même job que le build, donc non atteint                                                           |
+| Récapitulatif  | —               | **FAILURE** (3 s)        | Reflète l'échec global par propagation ; le tableau reste produit grâce à `if: always()`                          |
+
 
 ![Exécution DevSecOps #1 sur develop : statut Failure, graphe des jobs, et résumé GitLeaks « No leaks detected »](docs/screenshots/run1-summary-jobs.png)
 
-*Vue d'ensemble de l'exécution. Le graphe montre les trois contrôles parallèles, l'échec de
-`SCA : Snyk + Trivy FS`, et l'icône de saut sur `Build & scan des images`. En bas, le résumé de
+*Vue d'ensemble de l'exécution. Le graphe montre les trois contrôles parallèles, l'échec de*
+`SCA : Snyk + Trivy FS`*, et l'icône de saut sur* `Build & scan des images`*. En bas, le résumé de
 job de GitLeaks : « No leaks detected ».*
 
 ![Tableau récapitulatif écrit dans GitHub Step Summary](docs/screenshots/run1-step-summary.png)
 
-*Le récapitulatif produit par le job `summary`. Les six lignes reprennent l'état réel de chaque
-job via `needs.<job>.result`. Les deux dernières portent « Non exécuté (gate amont en échec) »,
+*Le récapitulatif produit par le job* `summary`*. Les six lignes reprennent l'état réel de chaque
+job via* `needs.<job>.result`*. Les deux dernières portent « Non exécuté (gate amont en échec) »,
 formulation qui distingue explicitement un saut d'un échec. Les sept catégories SARIF et le
 fonctionnement du security gate y sont rappelés.*
 
 ![Résumé Trivy filesystem : backend/pom.xml 6 vulnérabilités, frontend/package-lock.json 0](docs/screenshots/run1-trivy-fs-summary.png)
 
 *Sortie du contrôle bloquant Trivy. Le tableau de synthèse distingue nettement les deux
-écosystèmes : **6 vulnérabilités pour `backend/pom.xml`**, **0 pour `frontend/package-lock.json`**.
+écosystèmes : **6 vulnérabilités pour** `backend/pom.xml`, **0 pour** `frontend/package-lock.json`.
 Le frontend est donc indemne au niveau des dépendances.*
 
 ![Tableau Trivy des CVE CRITICAL : CVE-2025-24813, CVE-2026-41293, CVE-2026-43512](docs/screenshots/run1-trivy-cve-tomcat.png)
 
-*Détail des vulnérabilités Tomcat. La colonne `Installed Version` indique `10.1.34` et la colonne
-`Fixed Version` donne les versions correctives lorsqu'elles sont publiées.*
+*Détail des vulnérabilités Tomcat. La colonne* `Installed Version` *indique* `10.1.34` *et la colonne*
+`Fixed Version` *donne les versions correctives lorsqu'elles sont publiées.*
 
 ![Suite du tableau Trivy et échec du contrôle bloquant sur exit code 1](docs/screenshots/run1-trivy-cve-spring-exit1.png)
 
-*Fin du tableau, avec les deux CVE Spring Security, puis la ligne décisive :
-`Error: Process completed with exit code 1`. C'est cette sortie en erreur qui fait échouer le job
-`sca` et bloque le build Docker.*
+*Fin du tableau, avec les deux CVE Spring Security, puis la ligne décisive :*
+`Error: Process completed with exit code 1`*. C'est cette sortie en erreur qui fait échouer le job*
+`sca` *et bloque le build Docker.*
 
 ![Journal Snyk : vulnérabilités Critical et High dans spring-security-core et spring-security-crypto](docs/screenshots/run1-snyk-spring-security.png)
 
 *Extrait du journal Snyk sur les dépendances Maven. Snyk raisonne sur le graphe de dépendances et
-affiche pour chaque vulnérabilité la chaîne d'introduction — ici `spring-security-test@6.4.2 >
-spring-security-core@6.4.2 > spring-security-crypto@6.4.2`.*
+affiche pour chaque vulnérabilité la chaîne d'introduction — ici* `spring-security-test@6.4.2 > spring-security-core@6.4.2 > spring-security-crypto@6.4.2`*.*
 
 #### Résultats Snyk — synthèse
 
@@ -2084,15 +2223,17 @@ sensiblement plus élevé que Trivy, car il inclut les dépendances transitives 
 de test, et propose pour chacune une montée de version. Les composants concernés et les types de
 vulnérabilités réellement observés sont les suivants.
 
-| Composant | Version | Vulnérabilités observées (extraits) |
-|---|---|---|
-| `spring-security-core` | 6.4.2 | Missing Authentication for Critical Function (**Critical**), Timing Attack (High), Incorrect Authorization (Medium), Information Exposure (Medium), TOCTOU Race Condition (Medium) |
-| `spring-security-crypto` | 6.4.2 | Authentication Bypass by Primary Weakness (**Critical**), Generation of Predictable IV with CBC Mode (High) |
-| `jackson-databind` | 2.18.2 | Deserialization of Untrusted Data (**Critical**), Incomplete List of Disallowed Inputs (**Critical**), SSRF |
-| `tomcat-embed-core` | 10.1.34 | Improper Certificate Validation (**Critical**), Missing Critical Step in Authentication (**Critical**) |
-| `spring-boot-actuator` / `-autoconfigure` | 3.4.2 | Authentication Bypass Using an Alternate Path or Channel (**Critical**), Improper Validation of Certificate with Host Mismatch (**Critical**) |
-| `micrometer-core` | 1.14.3 | CRLF Injection (High), Allocation of Resources Without Limits (High), Missing Release of Memory (High) |
-| `commons-lang3` | 3.17.0 | Uncontrolled Recursion (High) |
+
+| Composant                                 | Version | Vulnérabilités observées (extraits)                                                                                                                                                |
+| ----------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `spring-security-core`                    | 6.4.2   | Missing Authentication for Critical Function (**Critical**), Timing Attack (High), Incorrect Authorization (Medium), Information Exposure (Medium), TOCTOU Race Condition (Medium) |
+| `spring-security-crypto`                  | 6.4.2   | Authentication Bypass by Primary Weakness (**Critical**), Generation of Predictable IV with CBC Mode (High)                                                                        |
+| `jackson-databind`                        | 2.18.2  | Deserialization of Untrusted Data (**Critical**), Incomplete List of Disallowed Inputs (**Critical**), SSRF                                                                        |
+| `tomcat-embed-core`                       | 10.1.34 | Improper Certificate Validation (**Critical**), Missing Critical Step in Authentication (**Critical**)                                                                             |
+| `spring-boot-actuator` / `-autoconfigure` | 3.4.2   | Authentication Bypass Using an Alternate Path or Channel (**Critical**), Improper Validation of Certificate with Host Mismatch (**Critical**)                                      |
+| `micrometer-core`                         | 1.14.3  | CRLF Injection (High), Allocation of Resources Without Limits (High), Missing Release of Memory (High)                                                                             |
+| `commons-lang3`                           | 3.17.0  | Uncontrolled Recursion (High)                                                                                                                                                      |
+
 
 Le journal complet n'est pas reproduit ici : il compte plusieurs centaines de lignes. Les deux
 outils sont complémentaires — Trivy applique un filtre sévérité et corrigibilité qui en fait un
@@ -2109,10 +2250,10 @@ celle du job `summary` reflétant l'état global.
 
 ![Alertes Code scanning sur la branche develop : 207 ouvertes, 0 fermées](docs/screenshots/run1-code-scanning-develop.png)
 
-*Onglet Security → Code scanning, filtré sur `is:open branch:develop`. **207 alertes ouvertes,
-0 fermée.** Les plus critiques sont détectées par Trivy dans `backend/pom.xml`, avec les intitulés
+*Onglet Security → Code scanning, filtré sur* `is:open branch:develop`*. **207 alertes ouvertes,
+0 fermée.** Les plus critiques sont détectées par Trivy dans* `backend/pom.xml`*, avec les intitulés
 correspondant aux CVE analysées ci-dessous. Le bandeau « Configured tools are not scanning the
-default branch » confirme que ce premier run a eu lieu sur `develop` et non sur `main`.*
+default branch » confirme que ce premier run a eu lieu sur* `develop` *et non sur* `main`*.*
 
 Une observation complémentaire mérite d'être notée : la liste contient également un finding de
 mauvaise configuration, `Image user should not be 'root'` (High), issu du scanner `misconfig` de
@@ -2120,26 +2261,30 @@ Trivy filesystem. Le Dockerfile du backend déclare pourtant bien un utilisateur
 ce qui oriente vers le Dockerfile du frontend — **à confirmer en Partie 7**, la capture ne
 permettant pas de lire le fichier concerné.
 
-> **Capture finale GitHub Security → Code scanning à ajouter après exécution de la pipeline sur
-> `main`**, une fois les corrections de la Partie 7 appliquées et au moins quatre alertes passées
+> **Capture finale GitHub Security → Code scanning à ajouter après exécution de la pipeline sur**
+> `main`, une fois les corrections de la Partie 7 appliquées et au moins quatre alertes passées
 > au statut *Fixed*. La capture ci-dessus, prise sur `develop`, constitue la preuve intermédiaire
 > de l'état **avant** correction.
 
 ---
+
+
 
 ### 6.2 Analyse des CVE
 
 Les six vulnérabilités retenues sont celles qui ont déclenché le contrôle bloquant : niveau
 CRITICAL, corrigeable, détectées par Trivy dans `backend/pom.xml`.
 
-| # | CVE | Package affecté | Version vulnérable | Score CVSS | Vecteur d'attaque | Version corrigée |
-|---|---|---|---|---|---|---|
-| 1 | `CVE-2025-24813` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 10.1.35, 11.0.3, 9.0.99 |
-| 2 | `CVE-2026-41293` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 10.1.55, 11.0.22, 9.0.118 |
-| 3 | `CVE-2026-43512` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | Non affichée dans la sortie observée ; à compléter depuis la fiche officielle. |
-| 4 | `CVE-2026-43515` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | Non affichée dans la sortie observée ; à compléter depuis la fiche officielle. |
-| 5 | `CVE-2025-41232` | `org.springframework.security:spring-security-core` | 6.4.2 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 6.4.6 |
-| 6 | `CVE-2026-22732` | `org.springframework.security:spring-security-web` | 6.4.2 | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 6.5.9, 7.0.4 |
+
+| #   | CVE              | Package affecté                                     | Version vulnérable | Score CVSS                                                 | Vecteur d'attaque                                          | Version corrigée                                                               |
+| --- | ---------------- | --------------------------------------------------- | ------------------ | ---------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 1   | `CVE-2025-24813` | `org.apache.tomcat.embed:tomcat-embed-core`         | 10.1.34            | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 10.1.35, 11.0.3, 9.0.99                                                        |
+| 2   | `CVE-2026-41293` | `org.apache.tomcat.embed:tomcat-embed-core`         | 10.1.34            | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 10.1.55, 11.0.22, 9.0.118                                                      |
+| 3   | `CVE-2026-43512` | `org.apache.tomcat.embed:tomcat-embed-core`         | 10.1.34            | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | Non affichée dans la sortie observée ; à compléter depuis la fiche officielle. |
+| 4   | `CVE-2026-43515` | `org.apache.tomcat.embed:tomcat-embed-core`         | 10.1.34            | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | Non affichée dans la sortie observée ; à compléter depuis la fiche officielle. |
+| 5   | `CVE-2025-41232` | `org.springframework.security:spring-security-core` | 6.4.2              | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 6.4.6                                                                          |
+| 6   | `CVE-2026-22732` | `org.springframework.security:spring-security-web`  | 6.4.2              | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 6.5.9, 7.0.4                                                                   |
+
 
 Les scores CVSS et les vecteurs d'attaque ne figurent pas dans la sortie Trivy telle qu'observée.
 Ils ne sont volontairement pas renseignés : les inventer priverait ce tableau de toute valeur.
@@ -2148,14 +2293,18 @@ Ils seront complétés depuis les fiches officielles, accessibles via les liens
 
 #### Intitulés relevés par Trivy
 
-| CVE | Intitulé |
-|---|---|
-| `CVE-2025-24813` | *tomcat: Potential RCE and/or information disclosure and/or information corruption with partial PUT* |
-| `CVE-2026-41293` | *tomcat-coyote: Apache Tomcat: HTTP/2 request headers not validated* |
-| `CVE-2026-43512` | *tomcat-coyote: Apache Tomcat: Authentication bypass via digest authentication* |
-| `CVE-2026-43515` | *tomcat-coyote: tomcat: Improper Authorization allows security bypass* |
+
+| CVE              | Intitulé                                                                                                   |
+| ---------------- | ---------------------------------------------------------------------------------------------------------- |
+| `CVE-2025-24813` | *tomcat: Potential RCE and/or information disclosure and/or information corruption with partial PUT*       |
+| `CVE-2026-41293` | *tomcat-coyote: Apache Tomcat: HTTP/2 request headers not validated*                                       |
+| `CVE-2026-43512` | *tomcat-coyote: Apache Tomcat: Authentication bypass via digest authentication*                            |
+| `CVE-2026-43515` | *tomcat-coyote: tomcat: Improper Authorization allows security bypass*                                     |
 | `CVE-2025-41232` | *Spring-Security: Spring Security authorization bypass for method security annotations on private methods* |
-| `CVE-2026-22732` | *Spring Security: Security policy bypass and information disclosure due to unwritten HTTP headers* |
+| `CVE-2026-22732` | *Spring Security: Security policy bypass and information disclosure due to unwritten HTTP headers*         |
+
+
+
 
 #### Impact concret pour SalaryTontine
 
@@ -2207,21 +2356,27 @@ comparaison de la section suivante.
 
 ---
 
+
+
 ### 6.3 Comparaison Manuelle vs Automatisée
 
-| Constat | Manuel | Semgrep | Snyk / Trivy | Analyse |
-|---|:---:|:---:|:---:|---|
-| C3 — Cookie sans attribut `Secure` | Oui | **Oui** | Non | Convergence complète. Semgrep confirme le constat manuel par la règle R4, sur `AppProperties.java:115` |
-| C8 — Protection CSRF désactivée | Oui | **Oui** | Non | Convergence sur le fait, divergence sur la conclusion — voir ci-dessous |
-| CVE Tomcat (4 CRITICAL) | Non | Non | **Oui** | Hors de portée d'une lecture de code : exige une base de vulnérabilités |
-| CVE Spring Security (2 CRITICAL) | Non | Non | **Oui** | Idem |
-| Vulnérabilités `jackson-databind` | Non | Non | **Oui** | Dépendance transitive, invisible dans le code du projet |
-| Vulnérabilités transitives diverses | Non | Non | **Oui** | Snyk fournit la chaîne d'introduction complète |
-| C1 — Rôle figé dans le JWT | **Oui** | Non | Non | Exige de comprendre le cycle de vie du jeton et le modèle de rôles |
-| C5 — Absence de rate limiting | **Oui** | Non | Non | Exige de raisonner sur une absence, non sur un motif présent |
-| C4 — E-mails exposés sur tontines `DRAFT` | **Oui** | Non | Non | Exige de comprendre la sémantique métier du statut `DRAFT` |
-| C6 — Échecs d'authentification non journalisés | **Oui** | Non | Non | Exige de savoir ce qui *devrait* être tracé |
-| C2 — Pas de révocation serveur du JWT | **Oui** | Non | Non | Exige de comprendre l'architecture d'authentification |
+
+| Constat                                        | Manuel  | Semgrep | Snyk / Trivy | Analyse                                                                                                |
+| ---------------------------------------------- | ------- | ------- | ------------ | ------------------------------------------------------------------------------------------------------ |
+| C3 — Cookie sans attribut `Secure`             | Oui     | **Oui** | Non          | Convergence complète. Semgrep confirme le constat manuel par la règle R4, sur `AppProperties.java:115` |
+| C8 — Protection CSRF désactivée                | Oui     | **Oui** | Non          | Convergence sur le fait, divergence sur la conclusion — voir ci-dessous                                |
+| CVE Tomcat (4 CRITICAL)                        | Non     | Non     | **Oui**      | Hors de portée d'une lecture de code : exige une base de vulnérabilités                                |
+| CVE Spring Security (2 CRITICAL)               | Non     | Non     | **Oui**      | Idem                                                                                                   |
+| Vulnérabilités `jackson-databind`              | Non     | Non     | **Oui**      | Dépendance transitive, invisible dans le code du projet                                                |
+| Vulnérabilités transitives diverses            | Non     | Non     | **Oui**      | Snyk fournit la chaîne d'introduction complète                                                         |
+| C1 — Rôle figé dans le JWT                     | **Oui** | Non     | Non          | Exige de comprendre le cycle de vie du jeton et le modèle de rôles                                     |
+| C5 — Absence de rate limiting                  | **Oui** | Non     | Non          | Exige de raisonner sur une absence, non sur un motif présent                                           |
+| C4 — E-mails exposés sur tontines `DRAFT`      | **Oui** | Non     | Non          | Exige de comprendre la sémantique métier du statut `DRAFT`                                             |
+| C6 — Échecs d'authentification non journalisés | **Oui** | Non     | Non          | Exige de savoir ce qui *devrait* être tracé                                                            |
+| C2 — Pas de révocation serveur du JWT          | **Oui** | Non     | Non          | Exige de comprendre l'architecture d'authentification                                                  |
+
+
+
 
 #### Trouvé par les deux approches
 
@@ -2236,7 +2391,7 @@ protection, globalement. Mais l'analyse manuelle de la Partie 3 est allée plus 
 établissant deux éléments que l'outil ne peut pas connaître. D'une part, le cookie
 d'authentification porte `SameSite=Lax`, ce qui empêche le navigateur de l'émettre sur une requête
 `POST`, `PATCH` ou `DELETE` inter-site. D'autre part — et c'est le point décisif — la vérification
-des quarante-deux endpoints de l'API a montré qu'**aucune route `GET` ne modifie l'état**. Or
+des quarante-deux endpoints de l'API a montré qu'**aucune route** `GET` **ne modifie l'état**. Or
 `Lax` n'émet le cookie que sur une navigation de premier niveau en `GET`. Il n'existe donc pas de
 vecteur exploitable sur un navigateur à jour.
 
@@ -2306,17 +2461,850 @@ avaient déjà trouvé, et les cinq constats de la troisième catégorie n'aurai
 
 ---
 
+
+
 ## 7. Corrections et Validation
 
 ### 7.1 Corrections Appliquées
 
+Six corrections techniques ont été appliquées, au-delà du minimum de quatre exigé. Elles
+répondent aux constats de la Partie 3 et aux findings des Parties 4 et 6. Le code demeurait
+jusqu'ici dans son état d'origine ; c'est cette section qui documente son passage à l'état
+corrigé, et la comparaison avant / après s'appuie sur les deux exécutions réelles de la pipeline.
+
+---
+
+#### Correction 1 — Dépendances vulnérables
+
+| | |
+|---|---|
+| **Vulnérabilité** | Six CVE CRITICAL dans les dépendances du backend — celles qui bloquaient le security gate |
+| **Constat d'origine** | Partie 6.2, détecté par Trivy et Snyk lors de `DevSecOps #1` |
+| **Fichier** | `backend/pom.xml` |
+
+**Avant.** Le projet reposait sur le parent `spring-boot-starter-parent` 3.4.2, qui gérait par son
+BOM l'ensemble des composants vulnérables :
+
+```xml
+<parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.4.2</version>
+</parent>
+```
+
+| Artefact | Version résolue avant |
+|---|---|
+| `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 |
+| `org.springframework.security:spring-security-core` | 6.4.2 |
+| `org.springframework.security:spring-security-web` | 6.4.2 |
+| `org.springframework.security:spring-security-crypto` | 6.4.2 |
+| `com.fasterxml.jackson.core:jackson-databind` | 2.18.2 |
+
+**Après.** Le parent est monté à 3.5.16, dernière version de la ligne 3.5.x :
+
+```xml
+<parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.5.16</version>
+</parent>
+```
+
+| Artefact | Version résolue après |
+|---|---|
+| `tomcat-embed-core` | **10.1.55** |
+| `spring-security-core` | **6.5.11** |
+| `spring-security-web` | **6.5.11** |
+| `spring-security-crypto` | **6.5.11** |
+| `jackson-databind` | **2.21.5** |
+| `micrometer-core` | 1.15.12 |
+| `springdoc-openapi-starter-webmvc-ui` | 2.8.17 |
+
+Quatre montées complémentaires ont été appliquées par **surcharge de propriétés exposées par le
+parent**, mécanisme officiel de Spring Boot pour appliquer un correctif avant le patch suivant.
+La version reste gérée par le BOM ; seule sa valeur est avancée, et chaque montée demeure dans la
+même ligne mineure :
+
+```xml
+<postgresql.version>42.7.12</postgresql.version>
+<jackson-bom.version>2.21.5</jackson-bom.version>
+<log4j2.version>2.25.5</log4j2.version>
+<commons-lang3.version>3.18.0</commons-lang3.version>
+```
+
+**Explication technique.** Les cinq artefacts vulnérables étaient tous gérés par le BOM Spring
+Boot, aucun n'était déclaré directement dans le `pom.xml`. Une montée cohérente du parent était
+donc la correction juste, et non une série d'exclusions ou de surcharges arbitraires.
+
+Le choix de la version cible a été établi sur des faits vérifiés, non sur les recommandations
+brutes des outils. Snyk proposait notamment de passer `spring-security-test` de 6.4.2 à 7.0.7.
+Cette suggestion a été écartée : Spring Security 7 appartient à la ligne Spring Boot 4, et
+l'introduire dans une application Spring Boot 3.x aurait rompu la cohérence du BOM sans garantie
+de compatibilité. La ligne 3.x a donc été conservée.
+
+Le choix de 3.5.16 plutôt que de la dernière 3.4.x s'appuie sur la comparaison des propriétés des
+deux BOM. La dernière 3.4.x aurait été **insuffisante** : elle plafonne à Tomcat 10.1.50 et
+Spring Security 6.4.13, soit en deçà des seuils correctifs requis — `CVE-2026-41293` exige Tomcat
+10.1.55 et `CVE-2026-22732` exige Spring Security 6.5.9. Seule la ligne 3.5.x franchissait ces
+deux seuils.
+
+**CVE CRITICAL initialement bloquantes, résolues :**
+
+| CVE | Composant | Résolue par |
+|---|---|---|
+| `CVE-2025-24813` | `tomcat-embed-core` | 10.1.34 → 10.1.55 |
+| `CVE-2026-41293` | `tomcat-embed-core` | 10.1.34 → 10.1.55 |
+| `CVE-2026-43512` | `tomcat-embed-core` | 10.1.34 → 10.1.55 |
+| `CVE-2026-43515` | `tomcat-embed-core` | 10.1.34 → 10.1.55 |
+| `CVE-2025-41232` | `spring-security-core` | 6.4.2 → 6.5.11 |
+| `CVE-2026-22732` | `spring-security-web` | 6.4.2 → 6.5.11 |
+
+La revalidation locale a fait apparaître six vulnérabilités supplémentaires corrigeables, de
+niveau HIGH et MEDIUM, également traitées : `CVE-2026-54291` (PostgreSQL), `CVE-2026-54515`,
+`CVE-2026-59889` et `GHSA-mhm7-754m-9p8w` (Jackson), `CVE-2026-49844` (Log4j2) et `CVE-2025-48924`
+(commons-lang3).
+
+**Une précision de comptage s'impose ici.** Douze CVE ont été résolues au total, mais cela ne
+constitue **pas douze corrections de code distinctes**. Il s'agit essentiellement d'**une seule
+correction technique** — la remise à niveau cohérente du socle de dépendances — complétée de
+quatre avancées de propriétés. Présenter ce résultat comme douze corrections serait un artifice
+de comptage : les quatre CVE Tomcat, par exemple, disparaissent toutes par la même montée de
+version.
+
+**Validation.**
+
+| Méthode | Résultat |
+|---|---|
+| `mvn dependency:tree` | Les cinq artefacts cibles résolus aux versions corrigées |
+| `mvn test` | 216 tests, 0 échec, 0 erreur |
+| `mvn verify` | BUILD SUCCESS, artefact produit |
+| Trivy FS local | 0 vulnérabilité corrigeable, toutes sévérités confondues |
+| Pipeline `DevSecOps #3` | Job `sca` en succès, gate franchi |
+
+---
+
+#### Correction 2 — Rôle obsolète conservé dans le JWT
+
+| | |
+|---|---|
+| **Vulnérabilité** | **C1** — le rôle porté par le jeton servait d'autorité effective |
+| **Catégorie** | A01:2021 Broken Access Control · CWE-613 |
+| **Sévérité** | High — constat classé en tête de la Partie 3 |
+| **Fichiers** | `JwtAuthenticationFilter.java`, `UserRepository.java`, `JwtRoleRefreshIntegrationTest.java` |
+
+**Avant.** Le filtre interrogeait la base pour vérifier le statut du compte, mais reconstruisait
+le principal à partir du rôle inscrit dans le jeton :
+
+```java
+// JwtAuthenticationFilter.java — avant
+if (!userRepository.existsByIdAndStatus(payload.userId(), UserStatus.ACTIVE)) {
+    return;
+}
+AuthenticatedUser principal =
+        new AuthenticatedUser(payload.userId(), payload.email(), null, payload.role());
+```
+
+```java
+// UserRepository.java — avant
+boolean existsByIdAndStatus(Long id, UserStatus status);
+```
+
+**Après.** L'utilisateur actif est réellement chargé, et le principal est construit à partir de
+l'entité en base :
+
+```java
+// JwtAuthenticationFilter.java — après
+User user = userRepository.findByIdAndStatus(payload.userId(), UserStatus.ACTIVE).orElse(null);
+if (user == null) {
+    return;
+}
+// Le hash du mot de passe reste hors du contexte de sécurité.
+AuthenticatedUser principal =
+        new AuthenticatedUser(user.getId(), user.getEmail(), null, user.getRole());
+```
+
+```java
+// UserRepository.java — après
+Optional<User> findByIdAndStatus(Long id, UserStatus status);
+```
+
+**Explication technique.** Le jeton prouve l'identité ; il ne décide plus des droits. Un
+`ACCOUNTANT` rétrogradé en `EMPLOYEE` perd désormais ses privilèges dès la requête suivante, sans
+attendre l'expiration de son jeton. Auparavant, la rétrogradation était bien enregistrée et
+auditée mais restait sans effet pendant une heure — la valeur de `JWT_EXPIRATION_SECONDS` — soit
+une fenêtre durant laquelle l'intéressé pouvait encore consulter tous les salaires, arbitrer des
+adhésions et déclencher des prélèvements.
+
+Deux nuances méritent d'être conservées. D'abord, **le jeton reste vérifié
+cryptographiquement** : la signature HMAC-SHA, l'identifiant et l'expiration sont contrôlés comme
+avant. Seul le rôle effectif est rafraîchi depuis la source de vérité. Ensuite, **la correction
+ne coûte rien** : le filtre effectuait déjà un aller-retour vers la base pour vérifier le statut.
+Remplacer `existsByIdAndStatus` par `findByIdAndStatus` conserve exactement une requête par
+requête HTTP.
+
+**Validation.** `JwtRoleRefreshIntegrationTest`, trois tests. Le scénario principal reproduit
+exactement la situation décrite :
+
+1. un `ACCOUNTANT` se connecte réellement et obtient son cookie ;
+2. `GET /api/employees` — route réservée aux gestionnaires — répond **200** ;
+3. le rôle est modifié en `EMPLOYEE` directement en base ;
+4. **le même cookie**, inchangé, est réutilisé ;
+5. `GET /api/employees` répond désormais **403** ;
+6. `GET /api/salaries/me` répond **200**.
+
+La sixième étape est celle qui distingue une correction d'une simple invalidation : la session
+reste valide, seuls les droits ont changé. Les deux autres tests couvrent la promotion inverse —
+un `EMPLOYEE` promu gagne l'accès immédiatement — et la suspension d'un compte, qui coupe l'accès
+malgré un jeton valide.
+
+---
+
+#### Correction 3 — Cookie JWT sûr par défaut
+
+| | |
+|---|---|
+| **Vulnérabilité** | **C3** — attribut `Secure` à `false` par défaut · finding Semgrep **R4** |
+| **Catégorie** | A02:2021 Cryptographic Failures · CWE-614 |
+| **Fichiers** | `AppProperties.java`, `application.yml`, `docker-compose.yml`, `.env.example`, `README.md` |
+
+**Avant.** La valeur par défaut était `false` à trois niveaux :
+
+```java
+// AppProperties.java
+private boolean cookieSecure = false;
+```
+```yaml
+# application.yml
+cookie-secure: ${JWT_COOKIE_SECURE:false}
+```
+```yaml
+# docker-compose.yml
+JWT_COOKIE_SECURE: ${JWT_COOKIE_SECURE:-false}
+```
+
+**Après.** Les trois niveaux sont alignés sur la valeur protectrice :
+
+```java
+// AppProperties.java
+private boolean cookieSecure = true;
+```
+```yaml
+# application.yml
+cookie-secure: ${JWT_COOKIE_SECURE:true}
+```
+```yaml
+# docker-compose.yml
+JWT_COOKIE_SECURE: ${JWT_COOKIE_SECURE:-true}
+```
+
+**Explication technique.** C'est l'application du principe *secure by default*. Ce qui était en
+cause n'était pas une exploitation actuelle — l'application ne dispose d'aucun déploiement de
+production — mais un défaut qui n'était pas sûr : un déploiement qui aurait omis de renseigner
+`JWT_COOKIE_SECURE` héritait silencieusement d'un cookie transmissible en clair sur HTTP. Un
+oubli de variable d'environnement suffisait à créer la vulnérabilité. L'inversion du défaut
+renverse la charge : c'est désormais l'affaiblissement qui exige une action délibérée.
+
+Le développement local en HTTP reste possible, mais uniquement par déclaration explicite de
+`JWT_COOKIE_SECURE=false`. La documentation a été alignée : `.env.example` et le tableau des
+variables du `README.md` indiquent le nouveau défaut.
+
+**Validation.**
+
+| Méthode | Résultat |
+|---|---|
+| `JwtCookieServiceTest` | 4 tests : le défaut est `true`, `Secure`/`HttpOnly`/`SameSite` présents, `Secure` omis seulement sur configuration explicite, cookie de déconnexion cohérent |
+| Semgrep R4 `salarytontine-insecure-auth-cookie` | **0 finding** — le motif `boolean *secure* = false` a disparu du code |
+
+---
+
+#### Correction 4 — Limitation de débit sur l'authentification
+
+| | |
+|---|---|
+| **Vulnérabilité** | **C5** — aucune limitation sur `/api/auth/login` ni `/api/auth/register` |
+| **Catégorie** | A07:2021 Identification and Authentication Failures · CWE-307 |
+| **Sévérité** | High |
+| **Fichiers** | `AuthRateLimitFilter.java` *(créé)*, `SecurityConfig.java`, `AppProperties.java`, `application.yml`, `.env.example`, `AuthRateLimitIntegrationTest.java` *(créé)* |
+
+**Avant.** Aucun mécanisme. Une recherche sur l'ensemble du backend et du `pom.xml` ne retournait
+aucune occurrence de limitation, et `AuthenticatedUser.isAccountNonLocked()` retournait `true` en
+dur, neutralisant le verrouillage pourtant prévu par Spring Security.
+
+**Après.** Un filtre dédié, `AuthRateLimitFilter`, **sans nouvelle dépendance** :
+
+```java
+private boolean isWithinQuota(String key, long window) {
+    Counter updated = counters.compute(key, (ignored, current) ->
+            (current == null || current.window() != window)
+                    ? new Counter(window, 1)
+                    : new Counter(window, current.attempts() + 1));
+
+    pruneIfNeeded(window);
+    return updated.attempts() <= properties.getMaxAttempts();
+}
+```
+
+Enregistré en tête de la chaîne de sécurité :
+
+```java
+// SecurityConfig.java
+.addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+```
+
+**Explication technique.**
+
+Le filtre ne s'applique qu'aux deux points d'entrée publics d'authentification, en `POST`. La clé
+de comptage associe **l'adresse distante et le chemin** : `/login` et `/register` disposent donc
+de quotas indépendants, et la saturation de l'un ne ferme pas l'autre.
+
+Le compteur est une **fenêtre fixe en mémoire**. Chaque clé est mise à jour par
+`ConcurrentHashMap.compute()`, atomique pour une clé donnée : il n'y a ni verrou global, ni
+variable partagée non protégée. Les fenêtres échues sont purgées au-delà de dix mille clés
+suivies, pour que le mécanisme de défense ne devienne pas lui-même un vecteur d'épuisement
+mémoire sous campagne distribuée.
+
+Un dépassement produit un **HTTP 429** accompagné d'un en-tête `Retry-After`. Le filtre **ne lit
+jamais le corps de la requête** : le mot de passe soumis ne transite par aucune de ses traces,
+qui ne mentionnent que le chemin et l'adresse d'origine.
+
+Le placement en tête de chaîne est délibéré : une requête au-delà du quota est rejetée **avant
+tout traitement coûteux**. BCrypt en coût 12 est volontairement lent, propriété excellente contre
+le cassage hors ligne mais qui, sans plafond, faisait de chaque tentative un coût serveur
+exploitable. Une requête rejetée ne déclenche désormais aucun hachage.
+
+L'adresse distante réelle sert de clé, jamais un en-tête fourni par le client. `X-Forwarded-For`
+est trivialement falsifiable et permettrait de contourner la limite à chaque requête ; derrière
+un proxy de confiance, c'est à `server.forward-headers-strategy` de reconstituer l'adresse
+d'origine avant que le filtre ne s'exécute.
+
+Les seuils sont externalisés — `APP_RATE_LIMIT_ENABLED`, `APP_RATE_LIMIT_MAX_ATTEMPTS`,
+`APP_RATE_LIMIT_WINDOW_SECONDS` — avec pour valeurs par défaut dix tentatives par fenêtre de
+soixante secondes.
+
+**Limite assumée de cette solution.** Le compteur est **local à l'instance**. Il convient au
+contexte de SalaryTontine, application académique déployée en instance unique, et il a l'avantage
+de n'introduire ni dépendance ni infrastructure supplémentaire — donc aucune surface d'attaque ni
+CVE additionnelle. Dans une architecture multi-instance derrière un répartiteur de charge, le
+quota serait appliqué indépendamment par chaque nœud et le plafond effectif se trouverait
+multiplié par leur nombre. Un tel déploiement exigerait un stockage partagé, Redis par exemple,
+ou une limitation portée par la passerelle en amont. Ce n'est pas une solution distribuée et elle
+n'est pas présentée comme telle.
+
+**Validation.** `AuthRateLimitIntegrationTest`, cinq tests :
+
+| Test | Vérification |
+|---|---|
+| Usage normal | Trois connexions réussies consécutives, aucune n'est bloquée |
+| Dépassement sur `/login` | Onzième tentative → **429** avec `Retry-After` |
+| Dépassement sur `/register` | Onzième tentative → **429** |
+| Quotas indépendants | `/login` saturé, `/register` répond toujours **201** |
+| Portée du filtre | `/api/dashboard` non limitée, quinze appels consécutifs |
+
+La limitation reste **active pendant les 216 tests** de la suite : `AbstractIntegrationTest`
+remet le compteur à zéro avant chaque test plutôt que de désactiver le mécanisme. Le fait que
+l'ensemble passe démontre que la protection n'entrave pas l'usage légitime de l'application.
+
+---
+
+#### Correction 5 — Journalisation des échecs d'authentification
+
+| | |
+|---|---|
+| **Vulnérabilité** | **C6** — aucun échec d'authentification tracé |
+| **Catégorie** | A09:2021 Security Logging and Monitoring Failures · CWE-778 |
+| **Fichiers** | `AuthService.java`, `AuthServiceTest.java` |
+
+**Avant.** L'inscription réussie était tracée, mais l'échec de connexion ne produisait ni trace
+d'audit ni journal applicatif :
+
+```java
+User user = userRepository.findByEmailIgnoreCase(normalizeEmail(request.email()))
+        .orElseThrow(() -> new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE));
+
+if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+    throw new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE);
+}
+```
+
+**Après.** Trois points d'échec journalisés en `WARN` :
+
+```java
+String email = normalizeEmail(request.email());
+
+User user = userRepository.findByEmailIgnoreCase(email)
+        .orElseThrow(() -> {
+            log.warn("Échec d'authentification : aucun compte pour l'adresse {}", email);
+            return new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE);
+        });
+
+if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+    log.warn("Échec d'authentification : mot de passe invalide pour le compte {}", email);
+    throw new BadCredentialsException(INVALID_CREDENTIALS_MESSAGE);
+}
+```
+
+Le troisième cas, le compte non actif, est tracé dans `requireActiveAccount`.
+
+**Explication technique.** Combinée à l'absence de limitation, l'absence de trace rendait une
+campagne de force brute totalement silencieuse : après une compromission, l'analyse ne pouvait ni
+dater l'intrusion, ni identifier la source. Les deux corrections se complètent — le rate limiting
+freine, la journalisation rend visible.
+
+Deux choix de conception méritent d'être explicités.
+
+**Aucune donnée sensible n'est journalisée.** Le mot de passe soumis, le JWT et les secrets
+n'apparaissent nulle part. Seuls l'adresse concernée et la nature de l'échec sont tracés.
+
+**Aucune insertion dans `audit_logs`.** L'approche retenue est un journal applicatif, pas une
+entrée d'audit métier. La raison est directement sécuritaire : une trace en base pour chaque
+tentative anonyme permettrait à un attaquant de gonfler indéfiniment une table métier, transformant
+la mesure de détection en vecteur de déni de service. Le choix évite en outre de créer une entrée
+d'audit dépendant d'un `User` qui n'existe pas lorsque l'adresse est inconnue.
+
+**La réponse HTTP demeure neutre.** Le journal serveur distingue « compte inconnu » de « mot de
+passe invalide », mais l'API continue de renvoyer le même message dans les deux cas. La
+distinction sert l'exploitant, jamais l'attaquant.
+
+**Validation.** Quatre tests ajoutés à `AuthServiceTest`, s'appuyant sur un `ListAppender`
+Logback qui capture les événements émis :
+
+| Test | Vérification |
+|---|---|
+| Compte inconnu | Une trace `WARN`, contenant l'adresse, **sans le mot de passe** |
+| Mot de passe erroné | Une trace `WARN`, contenant l'adresse, **sans le mot de passe** |
+| Trois mots de passe différents | **Aucune trace ne contient l'un d'eux**, quel qu'il soit |
+| Authentification réussie | **Aucune trace** émise |
+
+---
+
+#### Correction 6 — Conteneur frontend exécuté en root
+
+| | |
+|---|---|
+| **Vulnérabilité** | Alerte Trivy `DS-0002` — *Image user should not be 'root'* (High) |
+| **Origine** | Relevée dans Code Scanning lors de `DevSecOps #1`, sans que la capture permette d'identifier le fichier |
+| **Fichiers** | `frontend/Dockerfile`, `frontend/nginx.conf`, `docker-compose.yml` |
+
+**Identification de la source.** L'inspection des deux Dockerfiles a tranché : le backend
+déclarait déjà `USER salarytontine`, tandis que le frontend s'appuyait sur `nginx:1.27-alpine`
+sans aucune directive `USER`, donc en root. L'alerte fermée `#207` du run après correction
+confirme cette attribution : elle porte explicitement sur `frontend/Dockerfile`.
+
+**Avant.**
+
+```dockerfile
+FROM nginx:1.27-alpine AS runtime
+
+COPY --from=build /build/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1
+```
+
+**Après.**
+
+```dockerfile
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+
+COPY --from=build /build/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+USER 101
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:8080/ >/dev/null 2>&1 || exit 1
+```
+
+Le changement de port est une conséquence directe, non un choix arbitraire : un processus non
+privilégié ne peut pas ouvrir un port inférieur à 1024. Il a été propagé de façon cohérente à
+`nginx.conf` (`listen 8080`), à `EXPOSE`, au `HEALTHCHECK` et à `docker-compose.yml`
+(`"5173:8080"`). **Le port publié vers l'hôte reste 5173** : ni le `Makefile`, ni le `README`, ni
+aucune procédure de développement n'ont eu à changer.
+
+**Pourquoi un `USER 101` explicite alors que l'image de base l'applique déjà.** Après le passage
+à l'image non privilégiée, Trivy continuait de signaler `DS-0002`. Son analyseur de configuration
+est **statique** : il lit le Dockerfile sans résoudre l'image de base, et exige donc une directive
+`USER` dans le fichier lui-même.
+
+Répéter la directive n'est pas un contournement de scanner, c'est une amélioration réelle. Le
+Dockerfile porte désormais lui-même sa garantie : la propriété devient lisible sans connaître
+l'image de base, et un futur changement de base ne peut plus ramener le conteneur à root en
+silence — il faudrait retirer une ligne explicite pour cela.
+
+**Le backend n'était pas concerné.** Il déclarait déjà `USER salarytontine` et s'exécutait en
+`uid=100`. Un `HEALTHCHECK` lui a été ajouté, ce qui répond à l'alerte `DS-0026` (LOW) et rend
+l'image auto-descriptive pour un orchestrateur autre que Compose. **C'est un durcissement
+complémentaire, pas la correction d'une vulnérabilité majeure.**
+
+**Validation.**
+
+| Méthode | Résultat |
+|---|---|
+| Build des deux images | OK |
+| `docker inspect` backend | `Config.User = salarytontine` |
+| Exécution backend | `uid=100(salarytontine) gid=101(salarytontine)` |
+| `docker inspect` frontend | `Config.User = 101` |
+| Exécution frontend | `uid=101(nginx) gid=101(nginx)` |
+| Requête sur le conteneur frontend | `GET /` → **HTTP 200** sur le port 8080 |
+| Trivy misconfiguration | **0** sur `backend/Dockerfile` et **0** sur `frontend/Dockerfile` |
+| Code Scanning | Alerte `#207` fermée en *fixed* |
+
+---
+
+#### Tableau synthétique des corrections
+
+| # | Correction | Avant | Après | Validation |
+|---|---|---|---|---|
+| 1 | **Dépendances vulnérables** — 6 CVE CRITICAL bloquantes | Spring Boot 3.4.2 · Tomcat 10.1.34 · Spring Security 6.4.2 · Jackson 2.18.2 | Spring Boot 3.5.16 · Tomcat 10.1.55 · Spring Security 6.5.11 · Jackson 2.21.5 | `dependency:tree`, `mvn verify`, Trivy FS **0 vulnérabilité**, gate franchi |
+| 2 | **Rôle figé dans le JWT** (C1, CWE-613) | Principal construit avec `payload.role()` | Principal construit avec `user.getRole()`, relu en base | `JwtRoleRefreshIntegrationTest` — 403 après rétrogradation, même cookie |
+| 3 | **Cookie non `Secure` par défaut** (C3, CWE-614) | `cookieSecure = false` sur trois niveaux | `true` par défaut, `false` sur déclaration explicite | `JwtCookieServiceTest` · Semgrep R4 **0 finding** |
+| 4 | **Aucune limitation d'authentification** (C5, CWE-307) | Aucun plafond sur `/login` ni `/register` | Filtre dédié, 10 tentatives/60 s, **HTTP 429** | `AuthRateLimitIntegrationTest` — 5 tests |
+| 5 | **Échecs d'authentification non tracés** (C6, CWE-778) | Aucune trace, aucun journal | Trois points tracés en `WARN`, sans donnée sensible | `AuthServiceTest` — 4 tests Logback |
+| 6 | **Conteneur frontend en root** (Trivy `DS-0002`, High) | `nginx:1.27-alpine`, aucun `USER`, port 80 | `nginx-unprivileged`, `USER 101`, port 8080 | `uid=101(nginx)` · HTTP 200 · Trivy misconfig **0** · alerte `#207` *fixed* |
+
+**Six corrections techniques**, pour un minimum de quatre exigé.
+
+---
+
+#### Validation globale après correction
+
+**Backend**
+
+| Contrôle | Résultat |
+|---|---|
+| `mvn test` | **216 tests, 0 échec, 0 erreur** — contre 200 avant, soit 16 tests ajoutés |
+| `mvn verify` | **BUILD SUCCESS**, artefact `salary-tontine-backend-1.0.0.jar` produit |
+
+**Frontend**
+
+| Contrôle | Résultat |
+|---|---|
+| `npm ci` | 0 vulnérabilité signalée |
+| `npm test` | **66 tests**, 12 fichiers, tous au vert |
+| `npm run build` | 149 modules transformés, build réussi |
+| Trivy sur `frontend/package-lock.json` | 0 vulnérabilité — déjà le cas avant correction |
+
+**Semgrep — règles personnalisées**
+
+| Règle | Avant | Après |
+|---|---|---|
+| R1 — Injection SQL / JPQL | 0 | **0** |
+| R2 — Injection de commande | 0 | **0** |
+| R3 — Secret codé en dur | 0 | **0** |
+| R4 — Cookie non `Secure` | **1** | **0** — corrigé |
+| R5 — CSRF désactivée | 1 | **1** — conservé volontairement |
+| R6 — XSS React | 0 | **0** |
+
+**Trivy**
+
+| Contrôle | Avant | Après |
+|---|---|---|
+| Vulnérabilités CRITICAL corrigeables | **6** | **0** |
+| Vulnérabilités corrigeables, toutes sévérités | 12 | **0** |
+| Misconfiguration `backend/Dockerfile` | 1 (LOW) | **0** |
+| Misconfiguration `frontend/Dockerfile` | 1 (HIGH) | **0** |
+| Code de sortie du gate `exit-code: '1'` | **1** — bloqué | **0** — franchi |
+
+**Docker**
+
+| Image | Build | Utilisateur d'exécution |
+|---|---|---|
+| `salary-tontine-backend` | OK | `uid=100(salarytontine)` — déjà non-root avant |
+| `salary-tontine-frontend` | OK | `uid=101(nginx)` — corrigé |
+
+---
+
+#### Exécution GitHub Actions après correction
+
+L'exécution `DevSecOps #3` porte le commit `dca42c4` sur la branche `develop`.
+
+**Résultat global : SUCCESS**, en 5 min 27 s, avec 5 artefacts produits.
+
+![Pipeline DevSecOps entièrement verte après correction](docs/screenshots/run2-pipeline-green.png)
+
+*Exécution `DevSecOps #3` — statut **Success**. Les cinq jobs sont au vert : `Secrets : GitLeaks`
+(18 s), `SAST : Semgrep` (44 s), `SCA : Snyk + Trivy FS` (1 min 34 s), `Build & scan des images`
+(3 min 40 s) et `Récapitulatif DevSecOps` (3 s). Le graphe montre que le job de build, jusque-là
+sauté, s'exécute désormais après le franchissement du gate. GitLeaks confirme à nouveau
+« No leaks detected ».*
+
+![Récapitulatif GitHub Step Summary, six contrôles en succès](docs/screenshots/run2-pipeline-green2.png)
+
+*Le récapitulatif produit par le job `summary` : les six lignes affichent **Succès**, y compris
+`Build | Docker` et `Container Scan | Trivy Image`, qui portaient « Non exécuté (gate amont en
+échec) » lors du premier run.*
+
+**Comparaison avant / après**
+
+| | `DevSecOps #1` — avant | `DevSecOps #3` — après |
+|---|---|---|
+| Commit | `2d65796` | `dca42c4` |
+| **Résultat global** | **FAILURE** | **SUCCESS** |
+| Durée | 1 min 42 s | 5 min 27 s |
+| Artefacts | 2 | **5** |
+| Secrets — GitLeaks | SUCCESS | SUCCESS |
+| SAST — Semgrep | SUCCESS | SUCCESS |
+| SCA — Snyk + Trivy FS | **FAILURE** — 6 CRITICAL | **SUCCESS** |
+| Build Docker | **SKIPPED** — gate non franchi | **SUCCESS** |
+| Scan d'images — Trivy | **SKIPPED** | **SUCCESS** |
+| Récapitulatif | **FAILURE** | SUCCESS |
+
+L'écart de durée et le nombre d'artefacts sont significatifs : lors du premier run, la chaîne
+s'arrêtait au gate et ne produisait que deux rapports, ceux de GitLeaks et de Semgrep. Le
+franchissement du gate ajoute la construction des deux images et leurs deux rapports d'analyse.
+
+---
+
+#### Alertes passées au statut *Fixed*
+
+![Alertes Code scanning fermées en statut fixed](docs/screenshots/run2-code-scanning-fixed.png)
+
+*Onglet Security → Code scanning, filtré sur `is:closed branch:develop` : **183 alertes fermées**
+contre **159 encore ouvertes**. Les alertes visibles sont toutes marquées « closed as **fixed** »
+et détectées par Trivy.*
+
+Les alertes fermées visibles sur la capture, **neuf au total**, dépassent largement le minimum de
+quatre exigé :
+
+| Alerte | Intitulé | Sévérité | Fichier |
+|---|---|---|---|
+| `#184` | Spring Security : contournement de politique et divulgation d'information via des en-têtes HTTP non écrits | Critical | `backend/pom.xml` |
+| `#178` | Spring Security : contournement d'autorisation sur les annotations de sécurité appliquées à des méthodes privées | Critical | `backend/pom.xml` |
+| `#163` | `tomcat-juli` : manipulation de la console | Critical | `backend/pom.xml` |
+| `#159` | Tomcat : contournement de la vérification du certificat client par mappage d'hôte virtuel | Critical | `backend/pom.xml` |
+| `#142` | `tomcat-coyote` : autorisation incorrecte permettant un contournement de sécurité | Critical | `backend/pom.xml` |
+| `#141` | `tomcat-coyote` : contournement d'authentification via l'authentification *digest* | Critical | `backend/pom.xml` |
+| `#140` | `tomcat-coyote` : en-têtes de requête HTTP/2 non validés | Critical | `backend/pom.xml` |
+| `#139` | Tomcat : RCE potentielle, divulgation ou corruption d'information via `PUT` partiel | Critical | `backend/pom.xml` |
+| `#207` | *Image user should not be 'root'* | High | `frontend/Dockerfile` |
+
+Les huit premières correspondent aux montées de version de la Correction 1 ; la neuvième au
+passage du conteneur frontend en non-root, Correction 6. Cette dernière lève par ailleurs
+l'incertitude signalée en Partie 6 : la capture du premier run ne permettait pas d'identifier le
+Dockerfile concerné, l'alerte fermée le nomme explicitement.
+
+**Il reste 159 alertes ouvertes**, et il serait malhonnête de présenter la situation autrement.
+Elles correspondent aux vulnérabilités que la politique retenue ne traite pas — celles pour
+lesquelles aucun correctif n'est publié, et celles de sévérité inférieure au seuil bloquant. Le
+gate porte sur les vulnérabilités CRITICAL corrigeables : c'est cette catégorie qui est passée de
+six à zéro.
+
+---
+
 ### 7.2 Plan de Remédiation
+
+Les points suivants n'ont **pas** été corrigés. Chacun a été vérifié comme toujours applicable
+dans l'état actuel du code, et aucun n'est présenté ici comme résolu.
+
+#### 1 — Protection CSRF désactivée
+
+`SecurityConfig.java` conserve `.csrf(AbstractHttpConfigurer::disable)`, et le finding Semgrep R5
+reste présent. Ce choix est délibéré et documenté depuis la Partie 3 : il ne s'agit pas d'un
+oubli.
+
+L'analyse manuelle a établi deux faits que l'outil ne peut pas connaître. Le cookie
+d'authentification porte `SameSite=Lax`, qui empêche le navigateur de l'émettre sur une requête
+`POST`, `PATCH` ou `DELETE` inter-site. Et la vérification des quarante-deux endpoints a montré
+qu'aucune route `GET` ne modifie l'état — or `Lax` n'émet le cookie que sur une navigation de
+premier niveau en `GET`. Il n'existe donc pas de vecteur exploitable sur un navigateur à jour. Le
+CORS restreint à une origine unique constitue une barrière supplémentaire.
+
+Le risque résiduel subsiste pour les navigateurs anciens ignorant `SameSite`, et en cas de
+compromission d'un sous-domaine du même site, `SameSite` ne distinguant pas les origines au sein
+d'un même domaine enregistré. La défense en profondeur consisterait à activer
+`CookieCsrfTokenRepository`.
+
+Aucune suppression Semgrep n'a été créée pour masquer ce finding : il reste visible dans Code
+Scanning, ce qui est le comportement souhaité pour un risque assumé.
+
+#### 2 — Absence de révocation serveur des JWT
+
+Vérifié : aucun mécanisme de `tokenVersion`, de liste de révocation ou d'invalidation n'existe
+dans le code. La déconnexion se limite à renvoyer un cookie expiré ; un jeton capté auparavant
+reste valide jusqu'à son expiration.
+
+Le risque est borné par la durée de vie d'une heure et par le fait que le cookie est `HttpOnly`,
+donc non exfiltrable par XSS. Il reste qu'aucune action ne permet aujourd'hui de couper une
+session compromise. La remédiation consisterait à ajouter une colonne `token_version` sur
+`users`, à la porter en *claim*, à l'incrémenter à la déconnexion et au changement de mot de
+passe, puis à la comparer dans le filtre — lequel lit désormais déjà l'entité en base depuis la
+Correction 2, ce qui rend l'ajout peu coûteux.
+
+#### 3 — Adresses e-mail exposées sur les tontines `DRAFT`
+
+Vérifié : `TontineMapper` transporte toujours `member.getUser().getEmail()`, et l'exception de
+lecture accordée au statut `DRAFT` reste en place dans `checkReadAccess`. Tout compte authentifié
+peut donc reconstituer nom et adresse professionnelle des participants d'une tontine ouverte aux
+inscriptions.
+
+L'exception `DRAFT` est légitime — un employé doit pouvoir examiner une tontine avant de demander
+à la rejoindre — mais son périmètre est trop large. La remédiation consiste à appliquer la
+minimisation des données : retirer `userEmail` du DTO pour les non-gestionnaires, ou limiter
+l'exception à la fiche de la tontine sans la liste nominative.
+
+#### 4 — Swagger et OpenAPI publics
+
+Vérifié : `/swagger-ui/**` et `/v3/api-docs/**` figurent toujours parmi les routes publiques. La
+surface complète de l'API reste consultable sans authentification.
+
+Aucune donnée métier n'est servie par ces routes, et `/actuator` n'expose que `health` avec
+`show-details: never`. C'est une aide à la reconnaissance, pas un accès. Le comportement est
+approprié en développement ; en production, springdoc devrait être conditionné à un profil ou
+protégé par `hasRole('ADMIN')`.
+
+#### 5 — Pagination absente sur la plupart des listes
+
+Vérifié : un seul controller sur dix utilise `PageResponse`, celui du journal d'audit. Les huit
+routes de liste identifiées en Partie 3 retournent toujours des collections non bornées.
+
+Sans conséquence à l'échelle d'une PME, mais la remédiation est simple : généraliser
+`PageResponse`, déjà présent et éprouvé, aux routes à croissance non bornée.
+
+#### 6 — Port PostgreSQL publié sur l'hôte
+
+Vérifié : `docker-compose.yml` publie toujours `"${DB_PORT:-5432}:5432"` pour le service
+`postgres`. Le backend joint pourtant la base par le réseau interne `salarytontine-net` : cette
+publication ne sert que le confort de développement.
+
+Sur un serveur exposé, elle rendrait le port accessible depuis l'extérieur et permettrait de
+franchir la frontière **TB2** du modèle de menaces, contournant l'intégralité des règles métier
+pour ne laisser que les contraintes SQL — sans qu'aucune trace n'apparaisse dans le journal
+d'audit, alimenté par la couche applicative.
+
+#### Tableau de remédiation
+
+| Action | Priorité | Effort | Échéance proposée | Justification |
+|---|---|---|---|---|
+| Retirer la publication du port PostgreSQL | **Moyenne** | Faible | Avant tout déploiement hors poste de développement | Franchit la frontière TB2 et contourne toutes les règles métier ; sans usage en dehors du confort local |
+| Ajouter une révocation par `token_version` | **Moyenne** | Moyen | Prochain cycle | Seul moyen de couper une session compromise ; le filtre lit déjà l'entité en base, l'ajout est peu coûteux |
+| Minimiser les données des tontines `DRAFT` | **Moyenne** | Faible | Prochain cycle | Donnée personnelle exposée à tout compte authentifié ; correction confinée au DTO et au mapper |
+| Activer `CookieCsrfTokenRepository` | **Faible à moyenne** | Moyen | Selon le contexte de déploiement | Non exploitable aujourd'hui grâce à `SameSite=Lax` et à l'absence de `GET` mutant ; devient prioritaire si des sous-domaines tiers apparaissent ou si des navigateurs anciens doivent être supportés |
+| Conditionner Swagger à un profil | **Faible** | Faible | Avant mise en production | Aucune donnée métier exposée ; réduit seulement l'effort de reconnaissance d'un attaquant |
+| Généraliser `PageResponse` | **Faible** | Moyen | Selon la montée en charge | Aucun impact à l'échelle actuelle ; devient nécessaire au-delà de quelques milliers d'enregistrements |
+
+---
 
 ### 7.3 Dockerfile Sécurisé
 
+Le projet compte deux Dockerfiles réels ; aucun Dockerfile racine n'a été créé pour les besoins de
+la pipeline. Leur situation de départ était très différente, et il importe de ne pas les
+confondre.
+
+#### Backend — déjà conforme, durci à la marge
+
+`backend/Dockerfile` respectait déjà les bonnes pratiques essentielles **avant** toute
+correction : build multi-étapes séparant la compilation Maven de l'exécution, image d'exécution
+JRE Alpine minimale, et surtout **utilisateur non privilégié dédié**.
+
+```dockerfile
+# Déjà présent avant correction
+FROM maven:3.9-eclipse-temurin-21 AS build
+...
+FROM eclipse-temurin:21-jre-alpine AS runtime
+RUN addgroup -S salarytontine && adduser -S -G salarytontine salarytontine
+COPY --from=build /build/target/*.jar app.jar
+RUN chown -R salarytontine:salarytontine /app
+USER salarytontine
+```
+
+**Il n'était pas exécuté en root**, et l'affirmer serait inexact. La seule évolution apportée est
+l'ajout d'un `HEALTHCHECK`, qui répond à l'alerte Trivy `DS-0026` (LOW) et rend l'image
+auto-descriptive pour un orchestrateur autre que Compose :
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:8080/actuator/health | grep -q UP || exit 1
+```
+
+Le `COPY` reste minimal — seul le jar produit entre dans l'image d'exécution, ni sources, ni
+dépendances de build. Aucun secret n'est embarqué : la configuration provient exclusivement de
+variables d'environnement fournies à l'exécution, et l'inspection de l'image confirme que `/app`
+ne contient que `app.jar`.
+
+#### Frontend — correction réelle
+
+C'est ici que se situait la vulnérabilité. L'image reposait sur `nginx:1.27-alpine` sans aucune
+directive `USER`, donc en root.
+
+```dockerfile
+# AVANT
+FROM nginx:1.27-alpine AS runtime
+COPY --from=build /build/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+HEALTHCHECK ... CMD wget -qO- http://127.0.0.1/ ...
+```
+
+```dockerfile
+# APRÈS
+FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+COPY --from=build /build/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+USER 101
+EXPOSE 8080
+HEALTHCHECK ... CMD wget -qO- http://127.0.0.1:8080/ ...
+```
+
+```nginx
+# frontend/nginx.conf
+server {
+    listen 8080;   # au lieu de 80
+    ...
+}
+```
+
+```yaml
+# docker-compose.yml
+ports:
+  - "5173:8080"   # au lieu de 5173:80
+```
+
+#### Comparaison
+
+| Aspect | Avant | Après | Gain sécurité |
+|---|---|---|---|
+| **Backend — build** | Multi-étapes | Multi-étapes *(inchangé)* | Ni sources ni dépendances de build dans l'image finale |
+| **Backend — image d'exécution** | `eclipse-temurin:21-jre-alpine` | *(inchangé)* | Surface d'attaque minimale : JRE seul, pas de JDK |
+| **Backend — utilisateur** | `USER salarytontine` — `uid=100` | *(inchangé)* | Déjà non-root : une évasion de conteneur n'obtient pas root sur l'hôte |
+| **Backend — sonde** | Aucune | `HEALTHCHECK` sur `/actuator/health` | Un processus bloqué devient détectable par tout orchestrateur |
+| **Backend — secrets** | Aucun | *(inchangé)* | Configuration exclusivement par variables d'environnement |
+| **Frontend — build** | Multi-étapes | Multi-étapes *(inchangé)* | Seul `dist/` entre dans l'image finale, pas `node_modules` |
+| **Frontend — image de base** | `nginx:1.27-alpine` | `nginxinc/nginx-unprivileged:1.27-alpine` | Image officielle conçue pour l'exécution non privilégiée |
+| **Frontend — utilisateur** | Aucun — **root** | `USER 101` explicite — `uid=101(nginx)` | **Correction principale** : plus de processus root dans le conteneur |
+| **Frontend — port interne** | 80 | 8080 | Conséquence nécessaire : un non-root ne peut ouvrir un port < 1024 |
+| **Frontend — port publié** | 5173 | 5173 *(inchangé)* | Aucune procédure de développement modifiée |
+| **Frontend — sonde** | `http://127.0.0.1/` | `http://127.0.0.1:8080/` | Cohérence avec le nouveau port d'écoute |
+| **Trivy — misconfiguration** | 1 HIGH sur le frontend, 1 LOW sur le backend | **0 sur les deux** | Alertes `DS-0002` et `DS-0026` fermées |
+
+#### Vérification à l'exécution
+
+Les deux images ont été reconstruites et inspectées :
+
+```
+salary-tontine-backend    Config.User = salarytontine
+                          id → uid=100(salarytontine) gid=101(salarytontine)
+
+salary-tontine-frontend   Config.User = 101
+                          id → uid=101(nginx) gid=101(nginx)
+```
+
+Le conteneur frontend a été démarré et interrogé : `GET /` répond **HTTP 200** sur le port 8080,
+avec les processus nginx s'exécutant sous l'utilisateur `nginx`. La correction ne dégrade donc
+aucune fonctionnalité.
+
 ---
+
+
 
 ## 8. Bilan et Leçons Apprises
 
 ---
+
 *Examen Final 2INF2311 — SUP de CO Dakar*
