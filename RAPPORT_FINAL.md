@@ -12,6 +12,40 @@
 
 ## Résumé Exécutif
 
+**SalaryTontine** est une application web de gestion de tontines salariales : plusieurs employés
+cotisent à intervalle régulier, et chaque tour un participant différent perçoit la cagnotte. La
+cotisation est déduite du salaire de base, le versement s'y ajoute. Tous les montants sont
+simulés — aucune transaction financière réelle n'a lieu. L'application repose sur un backend
+Java 21 / Spring Boot, un frontend React / TypeScript, une base PostgreSQL, et une
+authentification par JWT en cookie HttpOnly, avec trois rôles : `EMPLOYEE`, `ACCOUNTANT` et
+`ADMIN`.
+
+Ce rapport documente la sécurisation de cette application selon une démarche DevSecOps complète.
+L'ordre suivi est délibéré : modélisation des menaces avec **OWASP Threat Dragon** selon la
+méthode **STRIDE** — 8 menaces sur les 6 catégories, 2 frontières de confiance —, puis **audit
+manuel OWASP Top 10 conduit avant toute exécution d'outil**, sur du code non corrigé. Cet audit a
+retenu 8 constats, dont cinq qu'aucun scanner n'a détectés parce qu'ils relevaient de la logique
+métier. Six règles **Semgrep** propres au projet ont ensuite été écrites, puis une pipeline
+**GitHub Actions** articulée autour d'un security gate, mobilisant **GitLeaks**, **Semgrep**,
+**Snyk** et **Trivy**.
+
+Le premier passage de la pipeline a échoué, et cet échec était le bon résultat : le gate a
+détecté **6 vulnérabilités CRITICAL corrigeables** dans les dépendances du backend et a empêché
+la construction des images Docker. Six corrections techniques ont suivi — remise à niveau
+cohérente du socle Spring Boot, rôle utilisateur relu depuis la base au lieu du jeton, cookie
+`Secure` par défaut, limitation de débit sur l'authentification, journalisation des échecs de
+connexion, et conteneur frontend passé en non-root — chacune couverte par un test de régression.
+
+Après correction, la pipeline est verte, le gate ne remonte **plus aucune vulnérabilité CRITICAL
+corrigeable**, les images sont construites et analysées, et **183 alertes** GitHub Code Scanning
+sont passées au statut *fixed*. La suite de tests compte **216 tests backend** et **66 tests
+frontend**, tous au vert.
+
+**159 alertes restent ouvertes** et sept points figurent au plan de remédiation : l'application
+n'est pas présentée comme sécurisée à cent pour cent. Ce que la démarche a produit est un niveau
+de risque mesuré, tracé et surveillé en continu, où chaque risque accepté l'a été sur la base
+d'une vérification.
+
 ---
 
 ## 1. Présentation de l'Application
@@ -2276,20 +2310,52 @@ Les six vulnérabilités retenues sont celles qui ont déclenché le contrôle b
 CRITICAL, corrigeable, détectées par Trivy dans `backend/pom.xml`.
 
 
-| #   | CVE              | Package affecté                                     | Version vulnérable | Score CVSS                                                 | Vecteur d'attaque                                          | Version corrigée                                                               |
-| --- | ---------------- | --------------------------------------------------- | ------------------ | ---------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| 1   | `CVE-2025-24813` | `org.apache.tomcat.embed:tomcat-embed-core`         | 10.1.34            | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 10.1.35, 11.0.3, 9.0.99                                                        |
-| 2   | `CVE-2026-41293` | `org.apache.tomcat.embed:tomcat-embed-core`         | 10.1.34            | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 10.1.55, 11.0.22, 9.0.118                                                      |
-| 3   | `CVE-2026-43512` | `org.apache.tomcat.embed:tomcat-embed-core`         | 10.1.34            | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | Non affichée dans la sortie observée ; à compléter depuis la fiche officielle. |
-| 4   | `CVE-2026-43515` | `org.apache.tomcat.embed:tomcat-embed-core`         | 10.1.34            | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | Non affichée dans la sortie observée ; à compléter depuis la fiche officielle. |
-| 5   | `CVE-2025-41232` | `org.springframework.security:spring-security-core` | 6.4.2              | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 6.4.6                                                                          |
-| 6   | `CVE-2026-22732` | `org.springframework.security:spring-security-web`  | 6.4.2              | À compléter après vérification de la fiche CVE officielle. | À compléter après vérification de la fiche CVE officielle. | 6.5.9, 7.0.4                                                                   |
+| # | CVE | Package affecté | Version vulnérable | CVSS v3.1 | Vecteur d'attaque | Vecteur complet | Version corrigée |
+|---|---|---|---|---|---|---|---|
+| 1 | `CVE-2025-24813` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | **9.8 — CRITICAL** | Réseau | `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H` | 10.1.35 · 11.0.3 · 9.0.99 |
+| 2 | `CVE-2026-41293` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | **9.8 — CRITICAL** | Réseau | `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H` | 10.1.55 · 11.0.22 · 9.0.118 |
+| 3 | `CVE-2026-43512` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | **9.8 — CRITICAL** | Réseau | `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H` | 10.1.55 · 11.0.22 · 9.0.118 |
+| 4 | `CVE-2026-43515` | `org.apache.tomcat.embed:tomcat-embed-core` | 10.1.34 | **9.1 — CRITICAL** | Réseau | `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N` | 10.1.55 · 11.0.22 · 9.0.118 |
+| 5 | `CVE-2025-41232` | `org.springframework.security:spring-security-core` | 6.4.2 | **9.1 — CRITICAL** | Réseau | `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N` | 6.4.6 |
+| 6 | `CVE-2026-22732` | `org.springframework.security:spring-security-web` | 6.4.2 | **9.1 — CRITICAL** | Réseau | `CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N` | 6.5.9 · 7.0.4 |
 
+Les six vulnérabilités partagent le même vecteur d'accès : **exploitables à distance sur le
+réseau, sans authentification préalable ni interaction d'un utilisateur** (`AV:N/AC:L/PR:N/UI:N`).
+La distinction entre 9.8 et 9.1 tient au seul impact sur la disponibilité : les trois premières
+l'affectent (`A:H`), les trois dernières non (`A:N`).
 
-Les scores CVSS et les vecteurs d'attaque ne figurent pas dans la sortie Trivy telle qu'observée.
-Ils ne sont volontairement pas renseignés : les inventer priverait ce tableau de toute valeur.
-Ils seront complétés depuis les fiches officielles, accessibles via les liens
-`https://avd.aquasec.com/nvd/<cve>` fournis par Trivy dans son rapport.
+Les scores et vecteurs ne figuraient pas dans la sortie Trivy telle qu'observée lors du premier
+run ; ils proviennent des fiches officielles. Les versions correctives des lignes 3 et 4, absentes
+elles aussi de la sortie observée, en sont également issues.
+
+**Trois précisions doivent accompagner ce tableau.**
+
+*Sur `CVE-2026-43512`* — la description publique de cette référence est marquée **DEPRECATED**
+dans certaines bases. Elle a été émise par le scanner lors du premier run, et c'est à ce titre
+qu'elle figure ici : le rapport documente ce qui a été réellement détecté. La montée de Tomcat à
+10.1.55 couvre en tout état de cause la version du composant concernée.
+
+*Sur `CVE-2026-43515`* — **CVSS 3.1 : 9.1 (CRITICAL) ; sévérité fournisseur Apache : Moderate.**
+Les deux valeurs coexistent sans se contredire : le CVSS mesure les caractéristiques techniques
+de la faille indépendamment du contexte, tandis que l'éditeur pondère selon les préconditions
+réelles d'exploitation et la configuration par défaut de son produit. C'est le score CVSS, plus
+élevé, que le gate a retenu.
+
+*Sur `CVE-2026-22732`* — les versions correctives publiées en open source sont 6.5.9 et 7.0.4 ; la
+ligne 6.4 dispose par ailleurs d'un correctif en 6.4.15, réservé à l'Enterprise Support.
+SalaryTontine a finalement été portée en **Spring Security 6.5.11** par la montée de Spring Boot
+à 3.5.16, ce qui couvre cette CVE comme la précédente.
+
+**Une réserve de méthode s'impose enfin.** Un outil de SCA détecte d'abord **une dépendance
+présente dans une version vulnérable** — c'est un fait objectif et vérifiable. Il n'établit pas
+que la faille soit exploitable dans l'application analysée : chaque CVE suppose des préconditions
+propres, et déterminer si elles sont réunies dans la configuration exacte de SalaryTontine
+relève d'une analyse distincte, esquissée ci-dessous. Les scores CVSS de ce tableau qualifient
+donc la vulnérabilité du composant, non le risque effectif porté par l'application.
+
+**Sources.** Fiches NVD / CVE pour les scores et vecteurs CVSS v3.1, advisories Apache Tomcat
+Security pour les quatre CVE Tomcat et leurs versions correctives, advisories Spring Security
+pour `CVE-2025-41232` et `CVE-2026-22732`.
 
 #### Intitulés relevés par Trivy
 
@@ -3304,6 +3370,297 @@ aucune fonctionnalité.
 
 
 ## 8. Bilan et Leçons Apprises
+
+### 8.1 Bilan global
+
+La démarche a suivi un ordre volontaire, et cet ordre conditionne la valeur du résultat.
+
+Elle a commencé par la **compréhension du domaine** : une tontine salariale n'est pas une
+application de gestion ordinaire, elle manipule des rémunérations et repose sur un cycle où
+chaque participant encaisse la cagnotte à son tour. C'est de cette compréhension qu'ont découlé
+les trois règles de séparation des tâches — personne ne fixe son propre salaire, ne s'ajoute
+soi-même à une tontine, ni n'arbitre sa propre adhésion. L'**architecture** en a été cartographiée
+avec ses trois rôles, ses quarante-deux endpoints et ses deux frontières de confiance.
+
+Le **modèle de menaces STRIDE** a ensuite formalisé huit menaces couvrant les six catégories, et
+les a hiérarchisées selon l'ampleur du dommage dans ce contexte métier précis, non selon une
+grille abstraite. L'**audit manuel OWASP** a été conduit **avant toute exécution d'outil**, sur un
+code non corrigé : huit constats retenus, quatre observations écartées comme non confirmées, et
+plusieurs classes de vulnérabilités explicitement recherchées sans être trouvées.
+
+Sont venus ensuite les **six règles Semgrep personnalisées**, écrites pour la pile réelle du
+projet, puis la **pipeline GitHub Actions** organisée autour d'un security gate, et enfin les
+**quatre outils** — GitLeaks sur l'historique, Semgrep sur le code, Snyk et Trivy sur les
+dépendances et les images. Les **corrections** ont clos la chaîne, chacune accompagnée d'un test
+de régression, et la **validation finale** s'est appuyée sur une seconde exécution réelle de la
+pipeline.
+
+#### Avant et après
+
+| | Avant — `DevSecOps #1` | Après — `DevSecOps #3` |
+|---|---|---|
+| Pipeline | **FAILURE** | **SUCCESS** |
+| Vulnérabilités CRITICAL corrigeables | **6** | **0** |
+| Job SCA | Échec au gate `exit-code: '1'` | Succès |
+| Build et scan des images Docker | **Non exécuté** — gate non franchi | Exécuté et analysé |
+| Rôle porté par le JWT | Autorité effective, figée jusqu'à expiration | Relu en base à chaque requête |
+| Cookie d'authentification | `Secure = false` par défaut | `Secure = true` par défaut |
+| Limitation sur `/login` et `/register` | Aucune | 10 tentatives / 60 s, HTTP 429 |
+| Conteneur frontend | **root** | `uid=101(nginx)` |
+| Conteneur backend | `uid=100(salarytontine)` — déjà conforme | Inchangé, `HEALTHCHECK` ajouté |
+| Tests backend | 200 | **216** |
+| Tests frontend | 66 | 66 |
+| Artefacts produits par la pipeline | 2 | 5 |
+
+Côté GitHub Code Scanning, **183 alertes sont passées au statut fermé**, dont neuf visibles sur la
+capture finale — huit `Critical` sur `backend/pom.xml` et une `High` sur `frontend/Dockerfile`.
+
+**Il reste 159 alertes ouvertes.** Écrire que tout a été corrigé serait faux. Ce qui est passé de
+six à zéro, c'est la catégorie que la politique de sécurité retenue contrôle : les vulnérabilités
+CRITICAL pour lesquelles un correctif existe. Les autres relèvent soit de composants sans
+correctif publié, soit de sévérités inférieures au seuil bloquant, et figurent au plan de
+remédiation.
+
+---
+
+### 8.2 Apports de l'analyse manuelle
+
+Cinq constats n'ont été trouvés par **aucun** des quatre outils. Ils partagent une propriété : ils
+ne se lisent pas dans une ligne de code, mais dans le rapport entre plusieurs éléments et le
+modèle métier.
+
+**Le rôle figé dans le JWT** est l'illustration la plus nette. Chacun des trois éléments en cause
+est parfaitement anodin pris isolément : inscrire le rôle dans le jeton à l'émission, vérifier le
+statut du compte dans le filtre, exposer un endpoint de modification de rôle. Le défaut n'existe
+que dans leur conjonction, et il ne devient grave qu'en sachant qu'un `ACCOUNTANT` voit tous les
+salaires et arbitre les adhésions. Aucun analyseur statique ne dispose de cette connaissance.
+
+**L'absence de limitation de débit**, **l'absence de journalisation des échecs** et **l'absence de
+révocation des jetons** relèvent d'une difficulté différente : ce sont des **absences**. Un outil
+reconnaît des motifs présents ; il ne peut pas signaler qu'un mécanisme manque, faute de savoir
+qu'il devrait exister. Il fallait poser la question « que devrait-il se passer quand
+l'authentification échoue ? » pour constater qu'il ne se passait rien.
+
+**L'exposition des adresses e-mail sur les tontines `DRAFT`** tient enfin à la sémantique métier
+d'un statut. Ouvrir la lecture d'une tontine encore ouverte aux inscriptions est une décision de
+conception légitime — un employé doit pouvoir l'examiner avant de candidater. Que cette ouverture
+livre au passage l'annuaire des participants est un effet de bord visible uniquement en lisant
+ensemble le service, le mapper et le DTO.
+
+Ces cinq constats concernent des rôles, des cycles de vie et des règles d'accès propres à
+SalaryTontine. Ils supposaient de comprendre ce que fait l'application, pas seulement comment elle
+est écrite.
+
+---
+
+### 8.3 Apports des outils automatisés
+
+**GitLeaks** a analysé l'arbre de travail et l'historique complet grâce à `fetch-depth: 0`, et
+conclu à `No leaks detected` lors des deux exécutions. C'est un résultat négatif, mais il a une
+valeur propre : il confirme automatiquement ce que l'inspection manuelle avait établi, et surtout
+il porte sur l'**historique**, où un secret retiré depuis resterait exploitable. Aucune relecture
+du code courant ne peut produire cette garantie.
+
+**Semgrep** a joué deux rôles. Ses six règles personnalisées ont confirmé deux constats manuels —
+`cookieSecure = false` et la désactivation de CSRF — sur des motifs syntaxiques reconnaissables,
+terrain où l'analyse statique est performante. Ses quatre autres règles n'ont rien remonté, et
+c'est leur fonction : elles interdisent l'introduction future d'une concaténation SQL, d'une
+exécution de commande, d'un secret en dur ou d'un rendu HTML non échappé. Leur capacité effective
+à détecter ces motifs a été démontrée sur un banc d'essai tenu hors du dépôt.
+
+**Snyk et Trivy** ont apporté ce qu'aucune lecture ne pouvait produire : **douze CVE**, dont six
+CRITICAL bloquantes, dans des composants que le `pom.xml` ne mentionne même pas. Tomcat, Jackson,
+Micrometer et Log4j arrivent par `spring-boot-starter-web`, `jjwt-jackson` et
+`spring-boot-starter-actuator`. Identifier ces vulnérabilités exigeait deux capacités hors de
+portée humaine : une **base de vulnérabilités tenue à jour** — plusieurs des CVE concernées
+n'existaient pas quand le code a été écrit — et la **résolution du graphe de dépendances
+transitives**. Snyk affiche en outre la chaîne d'introduction complète, ce qui désigne la
+dépendance racine sur laquelle agir plutôt que la feuille vulnérable.
+
+Les deux outils se complètent : Trivy applique un filtre de sévérité et de corrigibilité qui en
+fait un bon gate, Snyk fournit le contexte de remédiation.
+
+---
+
+### 8.4 Limites des outils et faux positifs
+
+Le cas le plus instructif de tout l'examen est le finding **R5**, sur
+`.csrf(AbstractHttpConfigurer::disable)`.
+
+Semgrep a raison sur le fait constaté : la protection CSRF est bel et bien désactivée globalement,
+sur une application qui authentifie par cookie. Le signalement est exact.
+
+Mais la qualification du risque exigeait trois vérifications que l'outil ne peut pas faire. Le
+cookie porte **`SameSite=Lax`**, qui empêche le navigateur de l'émettre sur une requête `POST`,
+`PATCH` ou `DELETE` inter-site. La revue des **quarante-deux endpoints** a établi qu'**aucune
+route `GET` ne modifie l'état** — or `Lax` n'émet le cookie que sur une navigation de premier
+niveau en `GET`. Et le **CORS est restreint à une origine unique**. Il n'existe donc pas de
+vecteur exploitable sur un navigateur à jour.
+
+La conclusion n'est pas que l'outil se trompe, mais qu'**un finding automatisé n'est pas
+nécessairement une vulnérabilité exploitable**. La correction a délibérément été écartée : la
+corriger uniquement pour faire disparaître l'alerte aurait été traiter le symptôme plutôt que le
+risque. Le finding reste visible dans Code Scanning, sans suppression Semgrep pour le masquer, et
+figure au plan de remédiation comme défense en profondeur.
+
+La même prudence a été appliquée à **Jackson**. La dépendance était vulnérable, ce qui est un
+fait ; mais l'exploitation des failles de désérialisation suppose l'activation du typage
+polymorphe, et la recherche de `enableDefaultTyping` et `@JsonTypeInfo` dans le backend n'a
+retourné aucune occurrence. Dépendance vulnérable présente et vulnérabilité exploitable dans
+l'application sont deux choses distinctes — la première justifie la mise à jour, la seconde
+détermine la priorité.
+
+**Deux cas inverses** méritent d'être notés, où l'outil avait raison contre l'apparence. Trivy a
+continué de signaler `DS-0002` sur le frontend **après** le passage à une image non privilégiée :
+son analyseur est statique et ne résout pas l'image de base. Ajouter un `USER 101` explicite n'a
+pas été un contournement, mais une amélioration réelle — le Dockerfile porte désormais lui-même sa
+garantie. À l'inverse, deux faux positifs de la règle R3 ont dû être corrigés lors de sa
+conception : un piège de *quoting* YAML et une heuristique de nommage trop large.
+
+#### Pourquoi 159 alertes restent ouvertes
+
+Trois raisons, aucune n'étant un oubli.
+
+Certaines vulnérabilités **n'ont pas de correctif publié** : le gate porte `ignore-unfixed: true`
+précisément parce que bloquer sur l'inactionnable arrêterait la chaîne sans offrir de remédiation.
+D'autres sont **de sévérité inférieure au seuil bloquant** : la politique retenue bloque sur
+CRITICAL et rapporte le reste, arbitrage assumé et documenté. Enfin, le rapport SARIF de Trivy
+publie **toutes les sévérités** dans Code Scanning, alors que le gate n'en contrôle qu'une : l'écart
+entre les 183 alertes fermées et les 159 restantes reflète cette différence de périmètre, non un
+travail inachevé.
+
+---
+
+### 8.5 Shift Left et automatisation
+
+Avant cette démarche, la sécurité de SalaryTontine reposait entièrement sur l'attention portée au
+code au moment de l'écrire. Elle repose désormais sur une chaîne exécutée à chaque `push` sur
+`main` et `develop`, et sur chaque *pull request*.
+
+**GitLeaks** contrôle les secrets, arbre de travail et historique compris. **Semgrep** analyse le
+backend et le frontend avec les six règles du projet et deux rulesets publics. **Snyk et Trivy**
+inspectent les dépendances des deux écosystèmes. Les images Docker ne sont **construites qu'après**
+validation de ces trois contrôles, puis analysées à leur tour. Les sept rapports SARIF sont
+centralisés dans GitHub Code Scanning sous des catégories distinctes, et un récapitulatif dans
+GitHub Summary donne l'état de chaque contrôle en une lecture.
+
+Le déplacement est celui-ci : ces vérifications interviennent désormais **au moment du commit**,
+non à la mise en production ni après incident. Une vulnérabilité CRITICAL corrigeable arrête
+réellement la chaîne.
+
+**Le premier run l'a démontré, et c'est son principal enseignement.** Son échec n'était pas un
+dysfonctionnement de la pipeline : le gate a détecté six vulnérabilités CRITICAL réelles, le job
+`sca` s'est terminé sur `exit code 1`, et `docker-build-and-scan` est resté au statut `skipped`,
+durée `0s`. Aucune image contenant ces vulnérabilités n'a été construite. Une pipeline qui aurait
+été verte ce jour-là aurait signifié que le gate ne servait à rien.
+
+---
+
+### 8.6 Leçons apprises
+
+**Une pipeline rouge peut être le bon résultat.** L'échec du premier run a été la meilleure preuve
+que le security gate fonctionnait. La tentation naturelle — abaisser le seuil, ajouter un
+`continue-on-error`, désactiver le contrôle bloquant — aurait produit une pipeline verte et une
+protection nulle. Un gate qui ne bloque jamais n'est pas un gate.
+
+**Une mise à jour de sécurité doit respecter la cohérence du framework.** Snyk proposait de passer
+`spring-security-test` à 7.0.7. Suivre cette recommandation aurait introduit Spring Security 7,
+qui appartient à la ligne Spring Boot 4, dans une application Spring Boot 3.x. La correction juste
+a consisté à monter le parent à 3.5.16 — après avoir vérifié que la dernière 3.4.x plafonnait
+sous les seuils correctifs requis. **Un outil indique une version corrigée, pas une trajectoire de
+migration.**
+
+**Un finding n'est pas automatiquement exploitable.** Le cas CSRF a demandé de vérifier
+`SameSite`, l'absence de `GET` mutant sur quarante-deux endpoints et la configuration CORS avant
+de conclure. Cette vérification a pris plus de temps que la correction n'en aurait pris — et c'est
+précisément pourquoi elle a de la valeur : elle évite de corriger au hasard et documente une
+décision.
+
+**Les règles métier échappent aux outils génériques.** Les cinq constats les plus structurels, dont
+le plus grave du rapport, exigeaient de comprendre ce que fait un comptable dans une tontine et ce
+qu'implique une rétrogradation. Aucun outil ne remplace cette lecture ; en revanche, aucune lecture
+ne remplace une base de CVE. Les deux approches ne se recouvrent que sur deux constats sur
+treize.
+
+**La sécurité d'un conteneur se vérifie statiquement et à l'exécution.** Le passage à une image
+non privilégiée ne suffisait pas : Trivy continuait de signaler l'absence de `USER`, et seule
+l'exécution réelle (`uid=101(nginx)`, `GET /` → 200 sur le port 8080) a confirmé que la correction
+fonctionnait sans casser le service. Les deux vérifications sont nécessaires et ne se substituent
+pas l'une à l'autre.
+
+**Les secrets s'externalisent dès la conception, pas après coup.** SalaryTontine n'a jamais eu de
+secret en dur, ce qu'ont confirmé l'inspection manuelle, la règle R3 et GitLeaks sur l'historique
+complet. Ce résultat ne doit rien à la chance : il découle de choix pris à l'écriture — variables
+d'environnement, `.env` ignoré par Git, `.env.example` sans valeur, et refus de démarrer si
+`JWT_SECRET` est absent. Un secret entré dans l'historique ne se retire pas, il se révoque.
+
+**Toute correction de sécurité mérite un test de régression.** Les seize tests ajoutés ne
+prouvent pas seulement que la correction fonctionne aujourd'hui ; ils empêchent qu'elle soit
+défaite demain. Le test du rôle JWT échouerait immédiatement si quelqu'un rétablissait
+`payload.role()`. Sans lui, la correction reposerait sur la mémoire de celui qui l'a écrite.
+
+---
+
+### 8.7 Limites et perspectives
+
+#### Ce qui reste
+
+| Point | Nature du risque résiduel |
+|---|---|
+| CSRF désactivée | Non exploitable dans le contexte vérifié ; dépend de `SameSite` et du navigateur |
+| Aucune révocation des jetons | Une session compromise ne peut être coupée avant expiration, une heure au plus |
+| E-mails exposés sur les tontines `DRAFT` | Donnée personnelle accessible à tout compte authentifié |
+| Swagger et OpenAPI publics | Aide à la reconnaissance ; aucune donnée métier exposée |
+| Pagination absente sur la plupart des listes | Sans effet à l'échelle actuelle |
+| Port PostgreSQL publié sur l'hôte | Confort de développement ; franchirait la frontière TB2 sur un serveur exposé |
+| Limitation de débit locale à l'instance | Le plafond serait multiplié par le nombre de nœuds derrière un répartiteur |
+| 159 alertes Code Scanning ouvertes | Vulnérabilités sans correctif ou sous le seuil bloquant |
+
+#### Perspectives
+
+Plusieurs de ces points convergent vers un même besoin : **séparer les profils Spring de
+développement et de production**. Swagger conditionné à un profil, port PostgreSQL non publié,
+cookie `Secure` déjà sûr par défaut — un profil `prod` explicite traiterait ces questions
+ensemble plutôt qu'une à une.
+
+Sur l'authentification, une **stratégie de jeton complète** — `token_version` en base, jeton
+d'accès court et jeton de rafraîchissement — répondrait à la révocation tout en réduisant la
+fenêtre d'exposition. Le filtre lit désormais déjà l'entité en base, ce qui en abaisse le coût.
+
+En cas de déploiement multi-instance, la **limitation de débit devrait devenir distribuée**, par
+un stockage partagé ou par la passerelle en amont.
+
+La **pagination** serait à généraliser via `PageResponse`, déjà présent et éprouvé sur le journal
+d'audit, si le volume de données croît.
+
+Enfin, la leçon la plus durable est que **les dépendances vieillissent**. Les six CVE CRITICAL
+bloquantes n'existaient pas quand le code a été écrit ; elles sont apparues dans les bases
+publiques après coup. La pipeline détecte désormais ces dérives à chaque `push`, mais un rythme
+de mise à jour régulier — et non réactif — reste nécessaire.
+
+---
+
+### Conclusion
+
+SalaryTontine était au départ une application fonctionnelle, correctement conçue sur plusieurs
+points — secrets externalisés, BCrypt en coût renforcé, séparation des tâches appliquée côté
+serveur, absence d'injection SQL, de XSS et d'IDOR horizontal — mais présentant des risques réels :
+un rôle figé dans le jeton qui rendait toute rétrogradation inopérante, aucune limitation sur les
+points d'entrée d'authentification, un cookie dont le défaut n'était pas sûr, un conteneur frontend
+exécuté en root, et six vulnérabilités CRITICAL dans ses dépendances.
+
+Elle est aujourd'hui intégrée dans une chaîne DevSecOps automatisée où **quatre outils s'exécutent
+à chaque commit**, où **un security gate bloque réellement** la construction des images sur une
+vulnérabilité CRITICAL corrigeable, où **six corrections sont couvertes par des tests de
+régression** parmi les 216 tests backend et 66 tests frontend, et où **les risques résiduels sont
+documentés** plutôt que masqués.
+
+Il serait faux d'écrire que l'application est sécurisée à cent pour cent, et cette conclusion ne le
+prétend pas. Cent cinquante-neuf alertes restent ouvertes, sept points figurent au plan de
+remédiation, et le finding CSRF demeure visible dans Code Scanning parce qu'aucune suppression n'a
+été créée pour l'y cacher. Ce que la démarche a produit n'est pas une application invulnérable,
+mais une application dont **le niveau de risque est mesuré, tracé et surveillé en continu** — et
+dont chaque risque accepté l'a été sur la base d'une vérification, non d'une omission.
 
 ---
 
