@@ -16,8 +16,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
     /** Sert à l'amorçage : un seul administrateur initial doit être créé. */
     boolean existsByRole(Role role);
 
-    /** Vérifié à chaque requête authentifiée : un compte suspendu perd l'accès aussitôt. */
-    boolean existsByIdAndStatus(Long id, UserStatus status);
+    /**
+     * Chargé à chaque requête authentifiée. Le compte est relu en base plutôt
+     * que déduit du jeton : un compte suspendu perd l'accès aussitôt, et un rôle
+     * modifié prend effet à la requête suivante sans attendre l'expiration.
+     */
+    Optional<User> findByIdAndStatus(Long id, UserStatus status);
 
     List<User> findAllByStatusOrderByCreatedAtAsc(UserStatus status);
 

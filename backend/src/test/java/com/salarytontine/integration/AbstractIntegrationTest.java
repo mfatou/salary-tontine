@@ -10,6 +10,7 @@ import com.salarytontine.repository.TontineJoinRequestRepository;
 import com.salarytontine.repository.TontineMemberRepository;
 import com.salarytontine.repository.TontineRepository;
 import com.salarytontine.repository.UserRepository;
+import com.salarytontine.security.AuthRateLimitFilter;
 import jakarta.servlet.http.Cookie;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.BeforeEach;
@@ -95,9 +96,17 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected PasswordEncoder passwordEncoder;
 
-    /** Chaque test part d'une base vide pour rester independant des autres. */
+    @Autowired
+    protected AuthRateLimitFilter authRateLimitFilter;
+
+    /**
+     * Chaque test part d'une base vide et d'un compteur de tentatives remis à
+     * zéro, pour rester independant des autres. La limitation reste active :
+     * les tests vérifient ainsi qu'elle n'entrave pas un usage normal.
+     */
     @BeforeEach
     void clearDatabase() {
+        authRateLimitFilter.reset();
         salaryRecordRepository.deleteAll();
         contributionRepository.deleteAll();
         joinRequestRepository.deleteAll();

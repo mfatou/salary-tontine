@@ -1,5 +1,6 @@
 package com.salarytontine.security;
 
+import com.salarytontine.entity.User;
 import com.salarytontine.enums.UserStatus;
 import com.salarytontine.repository.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -47,12 +48,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * Le jeton prouve l'identité ; il ne décide pas des droits.
+     *
+     * <p>Le compte est relu en base à chaque requête : le rôle porté par le jeton
+     * n'est jamais utilisé comme autorité effective. Sans cela, une rétrogradation
+     * resterait sans effet jusqu'à l'expiration du jeton, laissant à son porteur
+     * des privilèges qui lui ont été retirés.</p>
+     */
     private void authenticate(JwtService.JwtPayload payload, HttpServletRequest request) {
-        if (!userRepository.existsByIdAndStatus(payload.userId(), UserStatus.ACTIVE)) {
+        User user = userRepository.findByIdAndStatus(payload.userId(), UserStatus.ACTIVE).orElse(null);
+        if (user == null) {
             return;
         }
+        // Le hash du mot de passe reste hors du contexte de sécurité.
         AuthenticatedUser principal =
-                new AuthenticatedUser(payload.userId(), payload.email(), null, payload.role());
+                new AuthenticatedUser(user.getId(), user.getEmail(), null, user.getRole());
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

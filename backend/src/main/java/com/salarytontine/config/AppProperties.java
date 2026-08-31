@@ -23,6 +23,8 @@ public class AppProperties {
 
     private Admin admin = new Admin();
 
+    private RateLimit rateLimit = new RateLimit();
+
     public String getFrontendUrl() {
         return frontendUrl;
     }
@@ -53,6 +55,57 @@ public class AppProperties {
 
     public void setAdmin(Admin admin) {
         this.admin = admin;
+    }
+
+    public RateLimit getRateLimit() {
+        return rateLimit;
+    }
+
+    public void setRateLimit(RateLimit rateLimit) {
+        this.rateLimit = rateLimit;
+    }
+
+    /**
+     * Limitation de débit des points d'entrée d'authentification.
+     *
+     * <p>Les seuils sont externalisés : une valeur adaptée à un poste de
+     * développement ne l'est pas à une production exposée.</p>
+     */
+    public static class RateLimit {
+
+        private boolean enabled = true;
+
+        /** Tentatives autorisées par fenêtre, pour une même origine. */
+        @Positive
+        private int maxAttempts = 10;
+
+        /** Durée de la fenêtre glissante, en secondes. */
+        @Positive
+        private int windowSeconds = 60;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getMaxAttempts() {
+            return maxAttempts;
+        }
+
+        public void setMaxAttempts(int maxAttempts) {
+            this.maxAttempts = maxAttempts;
+        }
+
+        public int getWindowSeconds() {
+            return windowSeconds;
+        }
+
+        public void setWindowSeconds(int windowSeconds) {
+            this.windowSeconds = windowSeconds;
+        }
     }
 
     /**
@@ -112,7 +165,13 @@ public class AppProperties {
         @NotBlank
         private String cookieName = "salarytontine_token";
 
-        private boolean cookieSecure = false;
+        /**
+         * Sûr par défaut : le cookie n'est émis que sur une connexion chiffrée.
+         * Un déploiement qui oublierait de renseigner JWT_COOKIE_SECURE hérite
+         * donc de la valeur protectrice, et non l'inverse. Le développement en
+         * HTTP simple exige de passer explicitement la variable à false.
+         */
+        private boolean cookieSecure = true;
 
         public String getSecret() {
             return secret;

@@ -1,6 +1,7 @@
 package com.salarytontine.config;
 
 import com.salarytontine.exception.ErrorResponse;
+import com.salarytontine.security.AuthRateLimitFilter;
 import com.salarytontine.security.JwtAuthenticationFilter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -48,13 +49,16 @@ public class SecurityConfig {
 
     private final AppProperties appProperties;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final AuthRateLimitFilter authRateLimitFilter;
     private final ObjectMapper objectMapper;
 
     public SecurityConfig(AppProperties appProperties,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
+                          AuthRateLimitFilter authRateLimitFilter,
                           ObjectMapper objectMapper) {
         this.appProperties = appProperties;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.authRateLimitFilter = authRateLimitFilter;
         this.objectMapper = objectMapper;
     }
 
@@ -73,6 +77,9 @@ public class SecurityConfig {
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(authenticationEntryPoint())
                         .accessDeniedHandler(accessDeniedHandler()))
+                // La limitation s'applique avant tout traitement : une requête au-delà
+                // du quota est rejetée sans qu'aucun hachage BCrypt ne soit calculé.
+                .addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

@@ -314,7 +314,10 @@ valeur secrète réelle** et `.env` est ignoré par Git.
 | `DB_PASSWORD` | Mot de passe PostgreSQL | — *(obligatoire)* |
 | `JWT_SECRET` | Clé de signature HMAC-SHA, **32 caractères minimum** | — *(obligatoire)* |
 | `JWT_EXPIRATION_SECONDS` | Durée de validité du jeton | `3600` |
-| `JWT_COOKIE_SECURE` | `true` uniquement derrière HTTPS | `false` |
+| `JWT_COOKIE_SECURE` | Attribut `Secure` du cookie. `false` uniquement pour un accès local en HTTP | `true` |
+| `APP_RATE_LIMIT_ENABLED` | Limitation des tentatives sur `/api/auth/login` et `/api/auth/register` | `true` |
+| `APP_RATE_LIMIT_MAX_ATTEMPTS` | Tentatives autorisées par fenêtre et par origine | `10` |
+| `APP_RATE_LIMIT_WINDOW_SECONDS` | Durée de la fenêtre, en secondes | `60` |
 | `APP_FRONTEND_URL` | Origine autorisée par CORS | `http://localhost:5173` |
 | `APP_SEED_ENABLED` | Active le jeu de données de démonstration | `false` |
 | `APP_SEED_PASSWORD` | Mot de passe des comptes de démonstration (8 caractères minimum) | — |
