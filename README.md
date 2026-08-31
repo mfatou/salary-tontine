@@ -21,6 +21,8 @@ bas.
 > **[RAPPORT_FINAL.md](RAPPORT_FINAL.md)**.
 
 ---
+Note sur les branches : le développement et les premières exécutions de la pipeline DevSecOps ont été réalisés sur la branche develop, ce qui permet de conserver l’historique avant/après des alertes Code Scanning. La version finale du projet a ensuite été fusionnée sur main, où la pipeline finale est validée avec succès.
+
 
 ## Aperçu de l'application
 
@@ -190,6 +192,7 @@ risques résiduels sont documentés dans la **Partie 7.2** de [RAPPORT_FINAL.md]
 *GitHub Code Scanning après remédiation — alertes fermées / Fixed.*
 
 ---
+Les captures montrant les alertes Fixed/Closed proviennent de la branche develop, qui contient l’historique des scans avant et après correction. La branche main représente l’état final livré.
 
 ## Principales corrections de sécurité
 
